@@ -390,20 +390,40 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 		return 1;
 	case ButtonPress:
 		if (xevnt->xbutton.x >= 0 && xevnt->xbutton.y >= 0) {
-			event->button = (int)xevnt->xbutton.button;
-			event->x = xevnt->xbutton.x;
-			event->y = xevnt->xbutton.y;
-			event->type = MG_MOUSEDOWN;
-			return 1;
+			int button = 0;
+			if (xevnt->xbutton.button == 1 || xevnt->xbutton.button == 2 ||
+					xevnt->xbutton.button == 3)
+				button = (int)xevnt->xbutton.button;
+			else if (xevnt->xbutton.button == 9)
+				button = 4;
+			else if (xevnt->xbutton.button == 8)
+				button = 5;
+			if (button) {
+				event->button = button;
+				event->x = xevnt->xbutton.x;
+				event->y = xevnt->xbutton.y;
+				event->type = MG_MOUSEDOWN;
+				return 1;
+			}
 		}
 		break;
 	case ButtonRelease:
 		if (xevnt->xbutton.x >= 0 && xevnt->xbutton.y >= 0) {
-			event->button = (int)xevnt->xbutton.button;
-			event->x = xevnt->xbutton.x;
-			event->y = xevnt->xbutton.y;
-			event->type = MG_MOUSEUP;
-			return 1;
+			int button = 0;
+			if (xevnt->xbutton.button == 1 || xevnt->xbutton.button == 2 ||
+					xevnt->xbutton.button == 3)
+				button = (int)xevnt->xbutton.button;
+			else if (xevnt->xbutton.button == 9)
+				button = 4;
+			else if (xevnt->xbutton.button == 8)
+				button = 5;
+			if (button) {
+				event->button = button;
+				event->x = xevnt->xbutton.x;
+				event->y = xevnt->xbutton.y;
+				event->type = MG_MOUSEUP;
+				return 1;
+			}
 		}
 		break;
 	case MotionNotify:
