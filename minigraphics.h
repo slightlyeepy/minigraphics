@@ -56,6 +56,14 @@ enum mg_event_type {
 	MG_MOUSEUP,    /* a button on the mouse has been unpressed */
 	MG_MOUSEMOTION /* the mouse has moved */
 };
+/* a mouse button is represented one of the following values: */
+enum mg_mouse_btn {
+	MG_MOUSE_LEFT,
+	MG_MOUSE_MIDDLE,
+	MG_MOUSE_RIGHT,
+	MG_MOUSE_SIDE,
+	MG_MOUSE_EXTRA
+};
 /*
  * when an event is recieved (see below on how they are recieved), it
  * is stored in a structure with the following layout:
@@ -74,7 +82,7 @@ struct mg_event {
 	 * mouse button -- if 'type' is not MG_MOUSEDOWN or MG_MOUSEUP,
 	 * the value of this field is undefined.
 	 */
-	int button;
+	enum mg_mouse_btn button;
 
 	/*
 	 * X and Y position of the mouse cursor -- if 'type' is not
@@ -187,6 +195,7 @@ void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
 /*
  * set the current drawing color to the color specified by the
  * RGB value (r, g, b).
+ * the default is (255, 255, 255) (white).
  */
 void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
 
@@ -390,15 +399,31 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 		return 1;
 	case ButtonPress:
 		if (xevnt->xbutton.x >= 0 && xevnt->xbutton.y >= 0) {
-			int button = 0;
-			if (xevnt->xbutton.button == 1 || xevnt->xbutton.button == 2 ||
-					xevnt->xbutton.button == 3)
-				button = (int)xevnt->xbutton.button;
-			else if (xevnt->xbutton.button == 9)
-				button = 4;
-			else if (xevnt->xbutton.button == 8)
-				button = 5;
-			if (button) {
+			enum mg_mouse_btn button;
+			int set = 0;
+			switch (xevnt->xbutton.button) {
+			case 1:
+				button = MG_MOUSE_LEFT;
+				set = 1;
+				break;
+			case 2:
+				button = MG_MOUSE_MIDDLE;
+				set = 1;
+				break;
+			case 3:
+				button = MG_MOUSE_RIGHT;
+				set = 1;
+				break;
+			case 8:
+				button = MG_MOUSE_SIDE;
+				set = 1;
+				break;
+			case 9:
+				button = MG_MOUSE_EXTRA;
+				set = 1;
+				break;
+			}
+			if (set) {
 				event->button = button;
 				event->x = xevnt->xbutton.x;
 				event->y = xevnt->xbutton.y;
@@ -409,15 +434,31 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 		break;
 	case ButtonRelease:
 		if (xevnt->xbutton.x >= 0 && xevnt->xbutton.y >= 0) {
-			int button = 0;
-			if (xevnt->xbutton.button == 1 || xevnt->xbutton.button == 2 ||
-					xevnt->xbutton.button == 3)
-				button = (int)xevnt->xbutton.button;
-			else if (xevnt->xbutton.button == 9)
-				button = 4;
-			else if (xevnt->xbutton.button == 8)
-				button = 5;
-			if (button) {
+			enum mg_mouse_btn button;
+			int set = 0;
+			switch (xevnt->xbutton.button) {
+			case 1:
+				button = MG_MOUSE_LEFT;
+				set = 1;
+				break;
+			case 2:
+				button = MG_MOUSE_MIDDLE;
+				set = 1;
+				break;
+			case 3:
+				button = MG_MOUSE_RIGHT;
+				set = 1;
+				break;
+			case 8:
+				button = MG_MOUSE_SIDE;
+				set = 1;
+				break;
+			case 9:
+				button = MG_MOUSE_EXTRA;
+				set = 1;
+				break;
+			}
+			if (set) {
 				event->button = button;
 				event->x = xevnt->xbutton.x;
 				event->y = xevnt->xbutton.y;
@@ -1179,34 +1220,42 @@ mg__wl_pointer_frame(void *data, __attribute__((__unused__)) struct wl_pointer *
 
 	if (event->event_mask & MG__POINTER_EVENT_BUTTON && event->button >= BTN_LEFT &&
 			event->button <= BTN_EXTRA) {
-		int button;
+		enum mg_mouse_btn button;
+		int set = 0;
 		switch (event->button) {
 		case BTN_LEFT:
-			button = 1;
-			break;
-		case BTN_RIGHT:
-			button = 3;
+			button = MG_MOUSE_LEFT;
+			set = 1;
 			break;
 		case BTN_MIDDLE:
-			button = 2;
+			button = MG_MOUSE_MIDDLE;
+			set = 1;
+			break;
+		case BTN_RIGHT:
+			button = MG_MOUSE_RIGHT;
+			set = 1;
 			break;
 		case BTN_SIDE:
-			button = 4;
+			button = MG_MOUSE_SIDE;
+			set = 1;
 			break;
 		case BTN_EXTRA:
-			button = 5;
+			button = MG_MOUSE_EXTRA;
+			set = 1;
 			break;
 		}
-		if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
-			mg_state->pending_mouse_down.type = MG_MOUSEDOWN;
-			mg_state->pending_mouse_down.button = button;
-			mg_state->pending_mouse_down.x = wl_fixed_to_int(event->surface_x);
-			mg_state->pending_mouse_down.y = wl_fixed_to_int(event->surface_y);
-		} else {
-			mg_state->pending_mouse_up.type = MG_MOUSEUP;
-			mg_state->pending_mouse_up.button = button;
-			mg_state->pending_mouse_up.x = wl_fixed_to_int(event->surface_x);
-			mg_state->pending_mouse_up.y = wl_fixed_to_int(event->surface_y);
+		if (set) {
+			if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+				mg_state->pending_mouse_down.type = MG_MOUSEDOWN;
+				mg_state->pending_mouse_down.button = button;
+				mg_state->pending_mouse_down.x = wl_fixed_to_int(event->surface_x);
+				mg_state->pending_mouse_down.y = wl_fixed_to_int(event->surface_y);
+			} else {
+				mg_state->pending_mouse_up.type = MG_MOUSEUP;
+				mg_state->pending_mouse_up.button = button;
+				mg_state->pending_mouse_up.x = wl_fixed_to_int(event->surface_x);
+				mg_state->pending_mouse_up.y = wl_fixed_to_int(event->surface_y);
+			}
 		}
 	}
 
