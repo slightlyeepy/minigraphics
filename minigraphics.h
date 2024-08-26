@@ -1,95 +1,202 @@
 /*
- * This is free and unencumbered software released into the public domain.
- * 
- * Anyone is free to copy, modify, publish, use, compile, sell, or
- * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
- * means.
- * 
- * In jurisdictions that recognize copyright laws, the author or authors
- * of this software dedicate any and all copyright interest in the
- * software to the public domain. We make this dedication for the benefit
- * of the public at large and to the detriment of our heirs and
- * successors. We intend this dedication to be an overt act of
- * relinquishment in perpetuity of all present and future rights to this
- * software under copyright law.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * 
- * For more information, please refer to <http://unlicense.org/>
- */
-
-/*
+ * minigraphics in-development (versioned releases will come later)
+ *
+ * NOTE: minigraphics uses an indentifier called 'mg' and identifiers
+ * beginning with 'mg__' or 'MG__' internally; using these may cause
+ * conflicts.
+ *
  * ===========================================================================
- * header
+ * LICENSE
+ *
+ * see the end of the file for license information.
+ *
+ * ===========================================================================
+ * USAGE
+ *
+ * include this header wherever you need it as usual. in ONE file, add:
+ * 	#define MG_IMPLEMENTATION
+ * before the #include for this header.
+ *
+ * additionally, you'll need to define ONE of these macros:
+ * 	MG_BACKEND_X11
+ * 	MG_BACKEND_WAYLAND
+ * to use one of the respective backends. this is only necessary in the file
+ * that includes the implementation, but can be defined in other files too.
+ *
+ * see below for the docs.
+ * see the example program for the general structure of a simple program.
  */
 #if !defined(MG_H)
 #define MG_H
 #include <stdint.h>
 
 #include <xkbcommon/xkbcommon-keysyms.h>
-
+/*
+ * ===========================================================================
+ * DOCS (+ header)
+ *
+ * these global variables hold the current window dimensions and are updated
+ * automatically whenever it is resized.
+ */
 extern int mg_width;
 extern int mg_height;
-
-/* types */
+/*
+ * minigraphics uses an event loop for handling of things such as
+ * key presses, mouse clicks/movement, etc.
+ * these are all of the possible events that can be recieved.
+ */
 enum mg_event_type {
-	MG_NOEVENT,
-	MG_QUIT,
-	MG_RESIZE,
-	MG_REDRAW,
-	MG_KEYDOWN,
-	MG_KEYUP,
-	MG_MOUSEDOWN,
-	MG_MOUSEUP,
-	MG_MOUSEMOTION
+	MG_NOEVENT,    /* used internally */
+	MG_QUIT,       /* user has requested to close the window */
+	MG_RESIZE,     /* window has been resized */
+	MG_REDRAW,     /* window should be redrawn */
+	MG_KEYDOWN,    /* a key on the keyboard has been pressed */
+	MG_KEYUP,      /* a key on the keyboard has been unpressed */
+	MG_MOUSEDOWN,  /* a button on the mouse has been pressed */
+	MG_MOUSEUP,    /* a button on the mouse has been unpressed */
+	MG_MOUSEMOTION /* the mouse has moved */
 };
-
+/*
+ * when an event is recieved (see below on how they are recieved), it
+ * is stored in a structure with the following layout:
+ */
 struct mg_event {
+	/* event type */
 	enum mg_event_type type;
 
-	/* both xkb_keysym_t and Xlib KeySym are uint32_t so this works */
+	/*
+	 * XKB keysym for the key -- if 'type' is not MG_KEYDOWN or
+	 * MG_KEYUP, the value of this field is undefined.
+	 */
 	uint32_t key;
 
+	/*
+	 * mouse button -- if 'type' is not MG_MOUSEDOWN or MG_MOUSEUP,
+	 * the value of this field is undefined.
+	 */
 	int button;
-	int x;
-	int y;
-};
 
-/* drawing functions */
+	/*
+	 * X and Y position of the mouse cursor -- if 'type' is not
+	 * MG_MOUSEDOWN, MG_MOUSEUP, or MG_MOUSEMOTION, the
+	 * values of these fields are undefined.
+	 */
+	int x;                   /* mouse cursor X position */
+	int y;                   /* mouse cursor Y position */
+};
+/*
+ * now, for the functions.
+ *
+ * before doing anything with the library, you must initialize it by calling:
+ */
+int mg_init(int w, int h, const char *title);
+/*
+ * 0 is returned on success, and -1 is returned on error.
+ * the 'w' and 'h' parameters specify the requested size for the window -- the
+ * actual width and height might be different and will be stored in the
+ * mg_width and mg_height variables.
+ *
+ * once you are ready to quit, call:
+ */
+void mg_quit(void);
+/*
+ * to exit the library. this will close the window.
+ *
+ * to recieve events, you must have an event loop calling:
+ */
+void mg_waitevent(struct mg_event *event);
+/*
+ * 'event' must be a valid pointer to a mg_event structure. this function
+ * will block until an event is recieved and store it in the structure
+ * pointed to by 'event'.
+ *
+ * to draw things on the window, use one of the following functions:
+ */
+
+/* clear everything on the window with the current background color. */
 void mg_clear(void);
+
+/*
+ * draw an outline of a circle using the current drawing color,
+ * with its middle point being located at (x, y) and its radius being 'r'.
+ */
 void mg_drawcircle(int x, int y, int r);
+
+/*
+ * draw a line from the point (x1, y1) to the point (x2, y2) using the
+ * current drawing color.
+ */
 void mg_drawline(int x1, int y1, int x2, int y2);
+
+/* draw a pixel at the point (x, y) using the current drawing color. */
 void mg_drawpixel(int x, int y);
+
+/*
+ * draw an outline of a rectangle using the current drawing color,
+ * with its top-left point being located at (x1, y1) and its bottom-left
+ * point being at (x2, y2).
+ */
 void mg_drawrect(int x1, int y1, int x2, int y2);
+
+/*
+ * draw a string in an 8x8 bitmap font using the current drawing color,
+ * with the top-left corner of the first 8x8 character box being at (x, y).
+ * the 'size' parameter specifies the font size, so a 'size' of 2 will draw
+ * 16x16 text.
+ */
 void mg_drawtext(int x, int y, const char *text, int size);
+
+/*
+ * draw an outline of a triangle with the current drawing color,
+ * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
+ */
 void mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3);
+
+/*
+ * draw a filled-in circle using the current drawing color,
+ * with its middle point being located at (x, y) and its radius being 'r'.
+ */
 void mg_fillcircle(int x, int y, int r);
+
+/*
+ * draw a filled-in rectangle using the current drawing color,
+ * with its top-left point being located at (x1, y1) and its bottom-left
+ * point being at (x2, y2).
+ */
 void mg_fillrect(int x1, int y1, int x2, int y2);
+
+/*
+ * draw a filled-in triangle with the current drawing color,
+ * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
+ */
 void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
+
+/*
+ * commit all changes to the window -- calling this is necessary to be
+ * 100% sure your changes are actually displayed on the window.
+ */
 void mg_flush(void);
 
-/* functions to change options */
+/*
+ * set the current background color to the color specified by the
+ * RGB value (r, g, b).
+ * the default is (0, 0, 0) (black).
+ */
 void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
+
+/*
+ * set the current drawing color to the color specified by the
+ * RGB value (r, g, b).
+ */
 void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
 
-/* events */
-void mg_waitevent(struct mg_event *event);
+/* end of docs */
 
-/* initialization & shutdown */
-int mg_init(int w, int h, const char *title);
-void mg_quit(void);
 #endif /* !defined(MG_H) */
 
 /*
  * ===========================================================================
- * implementation
+ * IMPLEMENTATION
  */
 #if defined(MG_IMPLEMENTATION)
 
@@ -101,7 +208,7 @@ void mg_quit(void);
 
 /*
  * ===========================================================================
- * font
+ * FONT DATA
  */
 static const unsigned char mg__font[95][8] = {
 	/* make sure that (c >= 0x20 && c <= 0x7e) */
@@ -204,7 +311,7 @@ static const unsigned char mg__font[95][8] = {
 
 /*
  * ===========================================================================
- * x11 backend
+ * X11 BACKEND
  */
 #if defined(MG_BACKEND_X11)
 #include <stdlib.h>
@@ -320,6 +427,93 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 		break;
 	}
 	return 0;
+}
+
+/* initialization & shutdown */
+int
+mg_init(int w, int h, const char *title)
+{
+	XEvent xevnt;
+
+	/* open display */
+	if (!(mg.dpy = XOpenDisplay(NULL)))
+		return 1;
+
+	/* set detectable autorepeat */
+	XkbSetDetectableAutoRepeat(mg.dpy, True, NULL);
+
+	/* set screen, root window, colormap, and background color */
+	mg.screen = DefaultScreen(mg.dpy);
+	mg.root = DefaultRootWindow(mg.dpy);
+	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
+	mg.bgcolor = mg.black = BlackPixel(mg.dpy, mg.screen);
+	mg.color = mg.white = WhitePixel(mg.dpy, mg.screen);
+
+	/* create window */
+	mg.win = XCreateSimpleWindow(mg.dpy, mg.root, 0, 0,
+			(unsigned int)w, (unsigned int)h, 0, mg.bgcolor, mg.bgcolor);
+	mg.closed = 0;
+	mg_width = w;
+	mg_height = h;
+
+	/* name our window */
+	XStoreName(mg.dpy, mg.win, title);
+
+	/* specify WM_DELETE_WINDOW protocol */
+	mg.wmdeletewin = XInternAtom(mg.dpy, "WM_DELETE_WINDOW", 1);
+	XSetWMProtocols(mg.dpy, mg.win, &mg.wmdeletewin, 1);
+
+	/* tell X what events we are interested in */
+	XSelectInput(mg.dpy, mg.win, MG__X_EVENT_MASK | PointerMotionMask);
+
+	/* map window */
+	XMapWindow(mg.dpy, mg.win);
+
+	/* create graphics context */
+	mg.gc = XCreateGC(mg.dpy, mg.win, 0, NULL);
+
+	/* set GC colors */
+	XSetBackground(mg.dpy, mg.gc, mg.bgcolor);
+	XSetWindowBackground(mg.dpy, mg.win, mg.bgcolor);
+	XSetForeground(mg.dpy, mg.gc, mg.color);
+
+	/* wait for window mapping */
+	for (;;) {
+		XNextEvent(mg.dpy, &xevnt);
+		if (xevnt.type == ConfigureNotify) {
+			mg_width = xevnt.xconfigure.width;
+			mg_height = xevnt.xconfigure.height;
+		} else if (xevnt.type == MapNotify) {
+			break;
+		}
+	}
+	return 0;
+}
+
+void
+mg_quit(void)
+{
+	if (!mg.closed) {
+		XFreeGC(mg.dpy, mg.gc);
+		XDestroyWindow(mg.dpy, mg.win);
+		XCloseDisplay(mg.dpy);
+		mg.closed = 1;
+	}
+}
+
+/* events */
+void
+mg_waitevent(struct mg_event *event)
+{
+	XEvent xevnt;
+	for (;;) {
+		/* wait for an X event to happen */
+		XNextEvent(mg.dpy, &xevnt);
+
+		/* handle event */
+		if (mg__handle_x_event(event, &xevnt))
+			break;
+	}
 }
 
 /* drawing functions */
@@ -450,7 +644,7 @@ mg_flush(void)
 	XFlush(mg.dpy);
 }
 
-/* functions to change options */
+/* functions to set colors */
 void
 mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -505,98 +699,11 @@ mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
 	}
 	XSetForeground(mg.dpy, mg.gc, mg.color);
 }
-
-/* events */
-void
-mg_waitevent(struct mg_event *event)
-{
-	XEvent xevnt;
-	for (;;) {
-		/* wait for an X event to happen */
-		XNextEvent(mg.dpy, &xevnt);
-
-		/* handle event */
-		if (mg__handle_x_event(event, &xevnt))
-			break;
-	}
-}
-
-/* initialization & shutdown */
-int
-mg_init(int w, int h, const char *title)
-{
-	XEvent xevnt;
-
-	/* open display */
-	if (!(mg.dpy = XOpenDisplay(NULL)))
-		return -1;
-
-	/* set detectable autorepeat */
-	XkbSetDetectableAutoRepeat(mg.dpy, True, NULL);
-
-	/* set screen, root window, colormap, and background color */
-	mg.screen = DefaultScreen(mg.dpy);
-	mg.root = DefaultRootWindow(mg.dpy);
-	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
-	mg.bgcolor = mg.black = BlackPixel(mg.dpy, mg.screen);
-	mg.color = mg.white = WhitePixel(mg.dpy, mg.screen);
-
-	/* create window */
-	mg.win = XCreateSimpleWindow(mg.dpy, mg.root, 0, 0,
-			(unsigned int)w, (unsigned int)h, 0, mg.bgcolor, mg.bgcolor);
-	mg.closed = 0;
-	mg_width = w;
-	mg_height = h;
-
-	/* name our window */
-	XStoreName(mg.dpy, mg.win, title);
-
-	/* specify WM_DELETE_WINDOW protocol */
-	mg.wmdeletewin = XInternAtom(mg.dpy, "WM_DELETE_WINDOW", 1);
-	XSetWMProtocols(mg.dpy, mg.win, &mg.wmdeletewin, 1);
-
-	/* tell X what events we are interested in */
-	XSelectInput(mg.dpy, mg.win, MG__X_EVENT_MASK | PointerMotionMask);
-
-	/* map window */
-	XMapWindow(mg.dpy, mg.win);
-
-	/* create graphics context */
-	mg.gc = XCreateGC(mg.dpy, mg.win, 0, NULL);
-
-	/* set GC colors */
-	XSetBackground(mg.dpy, mg.gc, mg.bgcolor);
-	XSetWindowBackground(mg.dpy, mg.win, mg.bgcolor);
-	XSetForeground(mg.dpy, mg.gc, mg.color);
-
-	/* wait for window mapping */
-	for (;;) {
-		XNextEvent(mg.dpy, &xevnt);
-		if (xevnt.type == ConfigureNotify) {
-			mg_width = xevnt.xconfigure.width;
-			mg_height = xevnt.xconfigure.height;
-		} else if (xevnt.type == MapNotify) {
-			break;
-		}
-	}
-	return 0;
-}
-
-void
-mg_quit(void)
-{
-	if (!mg.closed) {
-		XFreeGC(mg.dpy, mg.gc);
-		XDestroyWindow(mg.dpy, mg.win);
-		XCloseDisplay(mg.dpy);
-		mg.closed = 1;
-	}
-}
 #endif /* defined(MG_BACKEND_X11) */
 
 /*
  * ===========================================================================
- * wayland backend
+ * WAYLAND BACKEND
  */
 #if defined(MG_BACKEND_WAYLAND)
 #if defined(__linux__)
@@ -1421,6 +1528,83 @@ static const struct wl_registry_listener wl_registry_listener = {
 	.global_remove = mg__registry_global_remove,
 };
 
+/* initialization & shutdown */
+int
+mg_init(int w, int h, const char *title)
+{
+	mg.closed = 0;
+	mg.bgcolor = 0x00000000;
+	mg.color = 0x00FFFFFF;
+
+	mg_width = w;
+	mg_height = h;
+	mg.buf_width = (size_t)mg_width;
+	mg.buf_height = (size_t)mg_height;
+	mg.buf_stride = mg.buf_width * 4;
+	mg.buf_size = mg.buf_stride * mg.buf_height;
+
+	if (!(mg.draw_buf = calloc(mg.buf_size, 1)))
+		return 1;
+
+	mg.pending_quit = 0;
+	mg.pending_resize = 0;
+	mg.pending_key_down = 0;
+	mg.pending_key_up = 0;
+	mg.pending_mouse_down.type = MG_NOEVENT;
+	mg.pending_mouse_up.type = MG_NOEVENT;
+	mg.pending_mouse_motion.type = MG_NOEVENT;
+
+	mg.wl_display = wl_display_connect(NULL);
+	mg.wl_registry = wl_display_get_registry(mg.wl_display);
+	mg.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	wl_registry_add_listener(mg.wl_registry, &wl_registry_listener, &mg);
+	wl_display_roundtrip(mg.wl_display);
+
+	mg.wl_surface = wl_compositor_create_surface(mg.wl_compositor);
+	mg.xdg_surface = xdg_wm_base_get_xdg_surface(
+			mg.xdg_wm_base, mg.wl_surface);
+	xdg_surface_add_listener(mg.xdg_surface, &mg__xdg_surface_listener, &mg);
+	mg.xdg_toplevel = xdg_surface_get_toplevel(mg.xdg_surface);
+	xdg_toplevel_add_listener(mg.xdg_toplevel,
+			&mg__xdg_toplevel_listener, &mg);
+	xdg_toplevel_set_title(mg.xdg_toplevel, title);
+	wl_surface_commit(mg.wl_surface);
+
+	return 0;
+}
+
+void
+mg_quit(void)
+{
+	if (!mg.closed) {
+		free(mg.draw_buf);
+		mg.draw_buf = NULL;
+
+		wl_surface_attach(mg.wl_surface, NULL, 0, 0);
+		wl_surface_commit(mg.wl_surface);
+		wl_surface_destroy(mg.wl_surface);
+		xdg_surface_destroy(mg.xdg_surface);
+		xdg_toplevel_destroy(mg.xdg_toplevel);
+		xdg_wm_base_destroy(mg.xdg_wm_base);
+		wl_display_disconnect(mg.wl_display);
+		mg.closed = 1;
+	}
+}
+
+/* events */
+void
+mg_waitevent(struct mg_event *event)
+{
+	for (;;) {
+		/* wait for a wayland event to happen */
+		wl_display_dispatch(mg.wl_display);
+
+		/* handle event */
+		if (mg__handle_wl_event(event))
+			break;
+	}
+}
+
 /* drawing functions */
 void
 mg_clear(void)
@@ -1601,7 +1785,7 @@ mg_flush(void)
 	}
 }
 
-/* functions to change options */
+/* functions to set colors */
 void
 mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -1615,83 +1799,61 @@ mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
 	/* remember we're using XRGB */
 	mg.color = (uint32_t)((r << 16) | (g << 8) | b);
 }
-
-/* events */
-void
-mg_waitevent(struct mg_event *event)
-{
-	for (;;) {
-		/* wait for a wayland event to happen */
-		wl_display_dispatch(mg.wl_display);
-
-		/* handle event */
-		if (mg__handle_wl_event(event))
-			break;
-	}
-}
-
-/* initialization & shutdown */
-int
-mg_init(int w, int h, const char *title)
-{
-	mg.closed = 0;
-	mg.bgcolor = 0x00000000;
-	mg.color = 0x00FFFFFF;
-
-	mg_width = w;
-	mg_height = h;
-	mg.buf_width = (size_t)mg_width;
-	mg.buf_height = (size_t)mg_height;
-	mg.buf_stride = mg.buf_width * 4;
-	mg.buf_size = mg.buf_stride * mg.buf_height;
-
-	if (!(mg.draw_buf = calloc(mg.buf_size, 1)))
-		return -1;
-
-	mg.pending_quit = 0;
-	mg.pending_resize = 0;
-	mg.pending_key_down = 0;
-	mg.pending_key_up = 0;
-	mg.pending_mouse_down.type = MG_NOEVENT;
-	mg.pending_mouse_up.type = MG_NOEVENT;
-	mg.pending_mouse_motion.type = MG_NOEVENT;
-
-	mg.wl_display = wl_display_connect(NULL);
-	mg.wl_registry = wl_display_get_registry(mg.wl_display);
-	mg.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	wl_registry_add_listener(mg.wl_registry, &wl_registry_listener, &mg);
-	wl_display_roundtrip(mg.wl_display);
-
-	mg.wl_surface = wl_compositor_create_surface(mg.wl_compositor);
-	mg.xdg_surface = xdg_wm_base_get_xdg_surface(
-			mg.xdg_wm_base, mg.wl_surface);
-	xdg_surface_add_listener(mg.xdg_surface, &mg__xdg_surface_listener, &mg);
-	mg.xdg_toplevel = xdg_surface_get_toplevel(mg.xdg_surface);
-	xdg_toplevel_add_listener(mg.xdg_toplevel,
-			&mg__xdg_toplevel_listener, &mg);
-	xdg_toplevel_set_title(mg.xdg_toplevel, title);
-	wl_surface_commit(mg.wl_surface);
-
-	return 0;
-}
-
-void
-mg_quit(void)
-{
-	if (!mg.closed) {
-		free(mg.draw_buf);
-		mg.draw_buf = NULL;
-
-		wl_surface_attach(mg.wl_surface, NULL, 0, 0);
-		wl_surface_commit(mg.wl_surface);
-		wl_surface_destroy(mg.wl_surface);
-		xdg_surface_destroy(mg.xdg_surface);
-		xdg_toplevel_destroy(mg.xdg_toplevel);
-		xdg_wm_base_destroy(mg.xdg_wm_base);
-		wl_display_disconnect(mg.wl_display);
-		mg.closed = 1;
-	}
-}
 #endif /* defined(MG_BACKEND_WAYLAND) */
 
 #endif /* MG_IMPLEMENTATION */
+
+/*
+ * This library is available under 2 licenses - choose whichever you prefer.
+ *
+ * ---------------------------------------------------------------------------
+ * ALTERNATIVE A - MIT/X Consortium License
+ *
+ * Copyright (c) 2024 iusevoidbtw
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * ---------------------------------------------------------------------------
+ * ALTERNATIVE B - Unlicense
+ *
+ * This is free and unencumbered software released into the public domain.
+ *
+ * Anyone is free to copy, modify, publish, use, compile, sell, or
+ * distribute this software, either in source code form or as a compiled
+ * binary, for any purpose, commercial or non-commercial, and by any
+ * means.
+ *
+ * In jurisdictions that recognize copyright laws, the author or authors
+ * of this software dedicate any and all copyright interest in the
+ * software to the public domain. We make this dedication for the benefit
+ * of the public at large and to the detriment of our heirs and
+ * successors. We intend this dedication to be an overt act of
+ * relinquishment in perpetuity of all present and future rights to this
+ * software under copyright law.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * For more information, please refer to <http://unlicense.org/>
+ */
