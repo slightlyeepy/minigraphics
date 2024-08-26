@@ -1,6 +1,7 @@
 /* See UNLICENSE file for copyright and license details. */
 #define _POSIX_C_SOURCE 199309L
 #include <errno.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -32,6 +33,20 @@ msleep(long ms)
 int
 main(void)
 {
+	struct mg_event event;
+	int xpos, ypos, cont;
+
+	jmp_buf env;
+	if (setjmp(env)) {
+		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
+		return 1;
+	}
+
+	/* initialize here to avoid gcc warnings */
+	xpos = 0;
+	ypos = 200;
+	cont = 1;
+
 	/*
 	 * create a 640x480 window.
 	 *
@@ -40,12 +55,7 @@ main(void)
 	 * the window dimensions are stored in the mg_width (width) and
 	 * mg_height (height) variables.
 	 */
-	struct mg_event event;
-	int xpos = 0;
-	int ypos = 200;
-	int cont = 1;
-
-	mg_init(640, 480, "example mg program");
+	mg_init(640, 480, "example mg program", env);
 	mg_setbgcolor(255, 255, 255);
 	mg_setdrawcolor(0, 0, 0);
 
