@@ -17,11 +17,19 @@
  * 	#define MG_IMPLEMENTATION
  * before the #include for this header.
  *
+ * to make the implementation private to the file that generates it, also add:
+ * 	#define MG_STATIC
+ *
  * additionally, you'll need to define ONE of these macros:
- * 	MG_BACKEND_X11
- * 	MG_BACKEND_WAYLAND
+ * 	#define MG_BACKEND_X11
+ * 	#define MG_BACKEND_WAYLAND
  * to use one of the respective backends. this is only necessary in the file
  * that includes the implementation, but can be defined in other files too.
+ *
+ * by default, __attribute__((__unused__)) is used if __GNUC__ is defined;
+ * you can override this by defining MG_UNUSED to some value to be used
+ * instead of the attribute, or setting it to an empty value:
+ * 	#define MG_UNUSED
  *
  * see below for the docs.
  * see the example program for the general structure of a simple program.
@@ -32,6 +40,23 @@
 #include <stdint.h>
 
 #include <xkbcommon/xkbcommon-keysyms.h>
+
+#if defined(MG_STATIC)
+#define MG__DEF static
+#else
+#define MG__DEF extern
+#endif /* defined(MG_STATIC) */
+
+#if !defined(MG_UNUSED)
+
+#if defined(__GNUC__)
+#define MG_UNUSED __attribute__((__unused__))
+#else
+#define MG_UNUSED
+#endif /* defined(__GNUC__) */
+
+#endif /* !defined(MG_UNUSED) */
+
 /*
  * ===========================================================================
  * DOCS (+ header)
@@ -109,7 +134,7 @@ struct mg_event {
  *
  * before doing anything with the library, you must initialize it by calling:
  */
-void mg_init(int w, int h, const char *title, jmp_buf err_return);
+MG__DEF void mg_init(int w, int h, const char *title, jmp_buf err_return);
 /*
  * the 'w' and 'h' parameters specify the requested size for the window -- the
  * actual width and height might be different and will be stored in the
@@ -123,18 +148,18 @@ void mg_init(int w, int h, const char *title, jmp_buf err_return);
  *
  * to convert that variable into an error message, use:
  */
-const char *mg_strerror(enum mg_error err);
+MG__DEF const char *mg_strerror(enum mg_error err);
 /*
  * once you are ready to quit, call:
  */
-void mg_quit(void);
+MG__DEF void mg_quit(void);
 /*
  * to exit the library; this will close the window. do not call this if
  * you are exiting due to a library error.
  *
  * to recieve events, you must have an event loop calling:
  */
-void mg_waitevent(struct mg_event *event);
+MG__DEF void mg_waitevent(struct mg_event *event);
 /*
  * 'event' must be a valid pointer to a mg_event structure. this function
  * will block until an event is recieved and store it in the structure
@@ -144,29 +169,29 @@ void mg_waitevent(struct mg_event *event);
  */
 
 /* clear everything on the window with the current background color. */
-void mg_clear(void);
+MG__DEF void mg_clear(void);
 
 /*
  * draw an outline of a circle using the current drawing color,
  * with its middle point being located at (x, y) and its radius being 'r'.
  */
-void mg_drawcircle(int x, int y, int r);
+MG__DEF void mg_drawcircle(int x, int y, int r);
 
 /*
  * draw a line from the point (x1, y1) to the point (x2, y2) using the
  * current drawing color.
  */
-void mg_drawline(int x1, int y1, int x2, int y2);
+MG__DEF void mg_drawline(int x1, int y1, int x2, int y2);
 
 /* draw a pixel at the point (x, y) using the current drawing color. */
-void mg_drawpixel(int x, int y);
+MG__DEF void mg_drawpixel(int x, int y);
 
 /*
  * draw an outline of a rectangle using the current drawing color,
  * with its top-left point being located at (x1, y1) and its bottom-left
  * point being at (x2, y2).
  */
-void mg_drawrect(int x1, int y1, int x2, int y2);
+MG__DEF void mg_drawrect(int x1, int y1, int x2, int y2);
 
 /*
  * draw a string in an 8x8 bitmap font using the current drawing color,
@@ -174,54 +199,54 @@ void mg_drawrect(int x1, int y1, int x2, int y2);
  * the 'size' parameter specifies the font size, so a 'size' of 2 will draw
  * 16x16 text.
  */
-void mg_drawtext(int x, int y, const char *text, int size);
+MG__DEF void mg_drawtext(int x, int y, const char *text, int size);
 
 /*
  * draw an outline of a triangle with the current drawing color,
  * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
  */
-void mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3);
+MG__DEF void mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 
 /*
  * draw a filled-in circle using the current drawing color,
  * with its middle point being located at (x, y) and its radius being 'r'.
  */
-void mg_fillcircle(int x, int y, int r);
+MG__DEF void mg_fillcircle(int x, int y, int r);
 
 /*
  * draw a filled-in rectangle using the current drawing color,
  * with its top-left point being located at (x1, y1) and its bottom-left
  * point being at (x2, y2).
  */
-void mg_fillrect(int x1, int y1, int x2, int y2);
+MG__DEF void mg_fillrect(int x1, int y1, int x2, int y2);
 
 /*
  * draw a filled-in triangle with the current drawing color,
  * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
  */
-void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
+MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 
 /*
  * commit all changes to the window -- calling this is necessary to be
  * 100% sure your changes are actually displayed on the window.
  */
-void mg_flush(void);
+MG__DEF void mg_flush(void);
 
 /*
  * set the current background color to the color specified by the
  * RGB value (r, g, b).
  * the default is (0, 0, 0) (black).
  */
-void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
+MG__DEF void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
 
 /*
  * set the current drawing color to the color specified by the
  * RGB value (r, g, b).
  * the default is (255, 255, 255) (white).
  */
-void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
+MG__DEF void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
 
-/* end of docs */
+/* end of docs/header */
 
 #endif /* !defined(MG_H) */
 
@@ -1079,21 +1104,21 @@ static void
 mg__sort_ascending_by_y(int x1, int y1, int x2, int y2, int x3, int y3,
 		int *nx1, int *ny1, int *nx2, int *ny2, int *nx3, int *ny3)
 {
-#define SWAP(x, y) tmp = x; x = y; y = tmp;
+#define MG__SWAP(x, y) tmp = x; x = y; y = tmp;
 	int tmp;
 	if (y1 > y3) {
-		SWAP(y1, y3);
-		SWAP(x1, x3);
+		MG__SWAP(y1, y3);
+		MG__SWAP(x1, x3);
 	}
 	if (y1 > y2) {
-		SWAP(y1, y2);
-		SWAP(x1, x2);
+		MG__SWAP(y1, y2);
+		MG__SWAP(x1, x2);
 	}
 	if (y2 > y3) {
-		SWAP(y2, y3);
-		SWAP(x2, x3);
+		MG__SWAP(y2, y3);
+		MG__SWAP(x2, x3);
 	}
-#undef SWAP
+#undef MG__SWAP
 
 	/* remember that lower Y value = higher */
 	*nx1 = x3;
@@ -1161,9 +1186,8 @@ mg__allocate_shm_file(size_t size)
 
 /* wayland event handling */
 static void
-mg__wl_pointer_enter(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t serial, __attribute__((__unused__)) struct wl_surface *surface,
-		wl_fixed_t surface_x, wl_fixed_t surface_y)
+mg__wl_pointer_enter(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t serial,
+		MG_UNUSED struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
 	/* pointer entered our surface */
 	struct mg__state *mg_state = (struct mg__state *)data;
@@ -1174,8 +1198,8 @@ mg__wl_pointer_enter(void *data, __attribute__((__unused__)) struct wl_pointer *
 }
 
 static void
-mg__wl_pointer_leave(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t serial, __attribute__((__unused__)) struct wl_surface *surface)
+mg__wl_pointer_leave(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t serial,
+		MG_UNUSED struct wl_surface *surface)
 {
 	/* pointer left our surface */
 	struct mg__state *mg_state = (struct mg__state *)data;
@@ -1184,8 +1208,8 @@ mg__wl_pointer_leave(void *data, __attribute__((__unused__)) struct wl_pointer *
 }
 
 static void
-mg__wl_pointer_motion(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y)
+mg__wl_pointer_motion(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t time,
+		wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.event_mask |= MG__POINTER_EVENT_MOTION;
@@ -1195,8 +1219,8 @@ mg__wl_pointer_motion(void *data, __attribute__((__unused__)) struct wl_pointer 
 }
 
 static void
-mg__wl_pointer_button(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t serial, uint32_t time, uint32_t button, uint32_t state)
+mg__wl_pointer_button(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t serial,
+		uint32_t time, uint32_t button, uint32_t state)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.event_mask |= MG__POINTER_EVENT_BUTTON;
@@ -1207,8 +1231,8 @@ mg__wl_pointer_button(void *data, __attribute__((__unused__)) struct wl_pointer 
 }
 
 static void
-mg__wl_pointer_axis(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t time, uint32_t axis, wl_fixed_t value)
+mg__wl_pointer_axis(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis,
+		wl_fixed_t value)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.event_mask |= MG__POINTER_EVENT_AXIS;
@@ -1218,8 +1242,7 @@ mg__wl_pointer_axis(void *data, __attribute__((__unused__)) struct wl_pointer *w
 }
 
 static void
-mg__wl_pointer_axis_source(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t axis_source)
+mg__wl_pointer_axis_source(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t axis_source)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.event_mask |= MG__POINTER_EVENT_AXIS_SOURCE;
@@ -1227,8 +1250,8 @@ mg__wl_pointer_axis_source(void *data, __attribute__((__unused__)) struct wl_poi
 }
 
 static void
-mg__wl_pointer_axis_stop(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t time, uint32_t axis)
+mg__wl_pointer_axis_stop(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t time,
+		uint32_t axis)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.time = time;
@@ -1237,8 +1260,8 @@ mg__wl_pointer_axis_stop(void *data, __attribute__((__unused__)) struct wl_point
 }
 
 static void
-mg__wl_pointer_axis_discrete(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer,
-		uint32_t axis, int32_t discrete)
+mg__wl_pointer_axis_discrete(void *data, MG_UNUSED struct wl_pointer *wl_pointer, uint32_t axis,
+		int32_t discrete)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->mg_pointer_event.event_mask |= MG__POINTER_EVENT_AXIS_DISCRETE;
@@ -1247,7 +1270,7 @@ mg__wl_pointer_axis_discrete(void *data, __attribute__((__unused__)) struct wl_p
 }
 
 static void
-mg__wl_pointer_frame(void *data, __attribute__((__unused__)) struct wl_pointer *wl_pointer)
+mg__wl_pointer_frame(void *data, MG_UNUSED struct wl_pointer *wl_pointer)
 {
 	/* some pointer event happened, this is where we handle these */
 	struct mg__state *mg_state = (struct mg__state *)data;
@@ -1318,8 +1341,8 @@ static const struct wl_pointer_listener mg__wl_pointer_listener = {
 
 /* keyboard */
 static void
-mg__wl_keyboard_keymap(void *data, __attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		uint32_t format, int32_t fd, uint32_t size)
+mg__wl_keyboard_keymap(void *data, MG_UNUSED struct wl_keyboard *wl_keyboard, uint32_t format,
+		int32_t fd, uint32_t size)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	char *map_shm;
@@ -1346,11 +1369,8 @@ mg__wl_keyboard_keymap(void *data, __attribute__((__unused__)) struct wl_keyboar
 }
 
 static void
-mg__wl_keyboard_enter(__attribute__((__unused__)) void *data,
-		__attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		__attribute__((__unused__)) uint32_t serial,
-		__attribute__((__unused__)) struct wl_surface *surface,
-		__attribute__((__unused__)) struct wl_array *keys)
+mg__wl_keyboard_enter(MG_UNUSED void *data, MG_UNUSED struct wl_keyboard *wl_keyboard, MG_UNUSED uint32_t serial,
+		MG_UNUSED struct wl_surface *surface, MG_UNUSED struct wl_array *keys)
 {
 	/* TODO: fire MG_KEYDOWN event for each key */
 	/*
@@ -1371,9 +1391,8 @@ mg__wl_keyboard_enter(__attribute__((__unused__)) void *data,
 }
 
 static void
-mg__wl_keyboard_key(void *data, __attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		__attribute__((__unused__)) uint32_t serial,
-		__attribute__((__unused__)) uint32_t time, uint32_t key, uint32_t state)
+mg__wl_keyboard_key(void *data, MG_UNUSED struct wl_keyboard *wl_keyboard, MG_UNUSED uint32_t serial,
+		MG_UNUSED uint32_t time, uint32_t key, uint32_t state)
 {
 	/* key press/release event */
 	struct mg__state *mg_state = (struct mg__state *)data;
@@ -1384,19 +1403,18 @@ mg__wl_keyboard_key(void *data, __attribute__((__unused__)) struct wl_keyboard *
 }
 
 static void
-mg__wl_keyboard_leave(__attribute__((__unused__)) void *data,
-		__attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		__attribute__((__unused__)) uint32_t serial,
-		__attribute__((__unused__)) struct wl_surface *surface)
+mg__wl_keyboard_leave(MG_UNUSED void *data,
+		MG_UNUSED struct wl_keyboard *wl_keyboard,
+		MG_UNUSED uint32_t serial,
+		MG_UNUSED struct wl_surface *surface)
 {
 	/*fputs("keyboard leave\n", stderr);*/
 }
 
 static void
-mg__wl_keyboard_modifiers(void *data, __attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		__attribute__((__unused__)) uint32_t serial, uint32_t mods_depressed,
-		uint32_t mods_latched, uint32_t mods_locked,
-		uint32_t group)
+mg__wl_keyboard_modifiers(void *data, MG_UNUSED struct wl_keyboard *wl_keyboard,
+		MG_UNUSED uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
+		uint32_t mods_locked, uint32_t group)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	xkb_state_update_mask(mg_state->xkb_state,
@@ -1404,10 +1422,10 @@ mg__wl_keyboard_modifiers(void *data, __attribute__((__unused__)) struct wl_keyb
 }
 
 static void
-mg__wl_keyboard_repeat_info(__attribute__((__unused__)) void *data,
-		__attribute__((__unused__)) struct wl_keyboard *wl_keyboard,
-		__attribute__((__unused__)) int32_t rate,
-		__attribute__((__unused__)) int32_t delay)
+mg__wl_keyboard_repeat_info(MG_UNUSED void *data,
+		MG_UNUSED struct wl_keyboard *wl_keyboard,
+		MG_UNUSED int32_t rate,
+		MG_UNUSED int32_t delay)
 {
 	/* stub */
 }
@@ -1422,7 +1440,7 @@ static const struct wl_keyboard_listener mg__wl_keyboard_listener = {
 };
 
 static void
-mg__wl_buffer_release(__attribute__((__unused__)) void *data, struct wl_buffer *wl_buffer)
+mg__wl_buffer_release(MG_UNUSED void *data, struct wl_buffer *wl_buffer)
 {
 	/* sent by the compositor when it's no longer using this buffer */
 	wl_buffer_destroy(wl_buffer);
@@ -1471,9 +1489,8 @@ mg__draw_frame(struct mg__state *mg_state)
 }
 
 static void
-mg__xdg_toplevel_configure(void *data,
-		__attribute__((__unused__)) struct xdg_toplevel *xdg_toplevel,
-		int32_t width, int32_t height, __attribute__((__unused__)) struct wl_array *states)
+mg__xdg_toplevel_configure(void *data, MG_UNUSED struct xdg_toplevel *xdg_toplevel,
+		int32_t width, int32_t height, MG_UNUSED struct wl_array *states)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 
@@ -1509,7 +1526,7 @@ mg__xdg_toplevel_configure(void *data,
 }
 
 static void
-mg__xdg_toplevel_close(void *data, __attribute__((__unused__)) struct xdg_toplevel *toplevel)
+mg__xdg_toplevel_close(void *data, MG_UNUSED struct xdg_toplevel *toplevel)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	mg_state->pending_quit = 1;
@@ -1521,8 +1538,7 @@ static const struct xdg_toplevel_listener mg__xdg_toplevel_listener = {
 };
 
 static void
-mg__xdg_surface_configure(void *data,
-		struct xdg_surface *xdg_surface, uint32_t serial)
+mg__xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t serial)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	struct wl_buffer *buffer;
@@ -1538,8 +1554,7 @@ static const struct xdg_surface_listener mg__xdg_surface_listener = {
 };
 
 static void
-mg__xdg_wm_base_ping(__attribute__((__unused__)) void *data,
-		struct xdg_wm_base *xdg_wm_base, uint32_t serial)
+mg__xdg_wm_base_ping(MG_UNUSED void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial)
 {
 	xdg_wm_base_pong(xdg_wm_base, serial);
 }
@@ -1549,8 +1564,7 @@ static const struct xdg_wm_base_listener mg__xdg_wm_base_listener = {
 };
 
 static void
-mg__wl_seat_capabilities(void *data, __attribute__((__unused__)) struct wl_seat *wl_seat,
-		uint32_t capabilities)
+mg__wl_seat_capabilities(void *data, MG_UNUSED struct wl_seat *wl_seat, uint32_t capabilities)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	int have_keyboard;
@@ -1579,9 +1593,7 @@ mg__wl_seat_capabilities(void *data, __attribute__((__unused__)) struct wl_seat 
 }
 
 static void
-mg__wl_seat_name(__attribute__((__unused__)) void *data,
-		__attribute__((__unused__)) struct wl_seat *wl_seat,
-		__attribute__((__unused__)) const char *name)
+mg__wl_seat_name(MG_UNUSED void *data, MG_UNUSED struct wl_seat *wl_seat, MG_UNUSED const char *name)
 {
 	/* stub */
 }
@@ -1592,9 +1604,8 @@ static const struct wl_seat_listener mg__wl_seat_listener = {
 };
 
 static void
-mg__registry_global(void *data, struct wl_registry *wl_registry,
-		uint32_t name, const char *interface,
-		__attribute__((__unused__)) uint32_t version)
+mg__registry_global(void *data, struct wl_registry *wl_registry, uint32_t name,
+		const char *interface, MG_UNUSED uint32_t version)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	if (strcmp(interface, wl_shm_interface.name) == 0) {
@@ -1617,9 +1628,8 @@ mg__registry_global(void *data, struct wl_registry *wl_registry,
 }
 
 static void
-mg__registry_global_remove(__attribute__((__unused__)) void *data,
-		__attribute__((__unused__)) struct wl_registry *wl_registry,
-		__attribute__((__unused__)) uint32_t name)
+mg__registry_global_remove(MG_UNUSED void *data, MG_UNUSED struct wl_registry *wl_registry,
+		MG_UNUSED uint32_t name)
 {
 	/* stub */
 }
