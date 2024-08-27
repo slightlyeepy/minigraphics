@@ -60,50 +60,48 @@ main(void)
 	mg_setdrawcolor(0, 0, 0);
 
 	while (cont) {
-		mg_waitevent(&event);
-		switch (event.type) {
-		case MG_QUIT:
-			cont = 0;
-			break;
-		case MG_RESIZE:
-			printf("window resized: width = %d height = %d\n",
-					mg_width, mg_height);
-			break;
-		case MG_KEYDOWN:
-			/* note: lower Y position = higher */
-			if (event.key == XKB_KEY_w || event.key == XKB_KEY_W) {
-				/* if W is pressed, move square up. */
-				if (ypos < 50) {
-					ypos = mg_height;
-				} else {
-					ypos -= 50;
+		if (mg_getevent(&event)) {
+			switch (event.type) {
+			case MG_QUIT:
+				cont = 0;
+				break;
+			case MG_RESIZE:
+				printf("window resized: width = %d height = %d\n", mg_width, mg_height);
+				break;
+			case MG_KEYDOWN:
+				/* note: lower Y position = higher */
+				if (event.key == XKB_KEY_w || event.key == XKB_KEY_W) {
+					/* if W is pressed, move square up. */
+					if (ypos < 50) {
+						ypos = mg_height;
+					} else {
+						ypos -= 50;
+					}
+				} else if (event.key == XKB_KEY_s || event.key == XKB_KEY_S) {
+					/* if S is pressed, move square down. */
+					if (ypos > mg_height - 50) {
+						ypos = 0;
+					} else {
+						ypos += 50;
+					}
 				}
-			} else if (event.key == XKB_KEY_s || event.key == XKB_KEY_S) {
-				/* if S is pressed, move square down. */
-				if (ypos > mg_height - 50) {
-					ypos = 0;
-				} else {
-					ypos += 50;
-				}
+				printf("key %u pressed\n", event.key);
+				break;
+			case MG_KEYUP:
+				printf("key %u released\n", event.key);
+				break;
+			case MG_MOUSEDOWN:
+				printf("mouse clicked: button = %u\n", event.button);
+				break;
+			case MG_MOUSEUP:
+				printf("mouse up: button = %u\n", event.button);
+				break;
+			case MG_MOUSEMOTION:
+				printf("mouse motion: x = %d y = %d\n", event.x, event.y);
+				break;
+			default:
+				break;
 			}
-			printf("key %u pressed\n", event.key);
-			break;
-		case MG_KEYUP:
-			printf("key %u released\n", event.key);
-			break;
-		case MG_MOUSEDOWN:
-			printf("mouse clicked: button = %u x = %d y = %d\n",
-					event.button, event.x, event.y);
-			break;
-		case MG_MOUSEUP:
-			printf("mouse up: button = %u x = %d y = %d\n",
-					event.button, event.x, event.y);
-			break;
-		case MG_MOUSEMOTION:
-			printf("mouse motion: x = %d y = %d\n", event.x, event.y);
-			break;
-		default:
-			break;
 		}
 
 		if (xpos == mg_width)

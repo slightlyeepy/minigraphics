@@ -13,6 +13,5 @@ minigraphics is a small single-header library for drawing primitive shapes and t
 
 # todo
 
-- implement non-blocking event handling
 - use frame callbacks on wayland
 - windows GDI backend (maybe?)

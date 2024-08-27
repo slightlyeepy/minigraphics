@@ -83,7 +83,7 @@ extern enum mg_error mg_errno;
  * these are all of the possible events that can be recieved.
  */
 enum mg_event_type {
-	MG_NOEVENT,    /* used internally */
+	MG_NOEVENT,    /* used internally, never reported */
 	MG_QUIT,       /* user has requested to close the window */
 	MG_RESIZE,     /* window has been resized */
 	MG_REDRAW,     /* window should be redrawn */
@@ -95,6 +95,7 @@ enum mg_event_type {
 };
 /* a mouse button is represented one of the following values: */
 enum mg_mouse_btn {
+	MG_MOUSE_NO_BUTTON, /* used internally, never reported */
 	MG_MOUSE_LEFT,
 	MG_MOUSE_MIDDLE,
 	MG_MOUSE_RIGHT,
@@ -123,11 +124,10 @@ struct mg_event {
 
 	/*
 	 * X and Y position of the mouse cursor -- if 'type' is not
-	 * MG_MOUSEDOWN, MG_MOUSEUP, or MG_MOUSEMOTION, the
-	 * values of these fields are undefined.
+	 * MG_MOUSEMOTION, the values of these fields are undefined.
 	 */
-	int x;                   /* mouse cursor X position */
-	int y;                   /* mouse cursor Y position */
+	int x;		   /* mouse cursor X position */
+	int y;		   /* mouse cursor Y position */
 };
 /*
  * now, for the functions.
@@ -157,13 +157,17 @@ MG__DEF void mg_quit(void);
  * to exit the library; this will close the window. do not call this if
  * you are exiting due to a library error.
  *
- * to recieve events, you must have an event loop calling:
+ * to recieve an event, you can call:
+ */
+MG__DEF int mg_getevent(struct mg_event *event);
+/*
+ * 'event' must be a valid pointer to a mg_event structure. if no events
+ * are currently pending, 0 is returned; otherwise, 1 is returned.
+ *
+ * alternatively, to block until an event is recieved, call:
  */
 MG__DEF void mg_waitevent(struct mg_event *event);
 /*
- * 'event' must be a valid pointer to a mg_event structure. this function
- * will block until an event is recieved and store it in the structure
- * pointed to by 'event'.
  *
  * to draw things on the window, use one of the following functions:
  */
@@ -482,8 +486,6 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 			}
 			if (set) {
 				event->button = button;
-				event->x = xevnt->xbutton.x;
-				event->y = xevnt->xbutton.y;
 				event->type = MG_MOUSEDOWN;
 				return 1;
 			}
@@ -517,8 +519,6 @@ mg__handle_x_event(struct mg_event *event, XEvent *xevnt)
 			}
 			if (set) {
 				event->button = button;
-				event->x = xevnt->xbutton.x;
-				event->y = xevnt->xbutton.y;
 				event->type = MG_MOUSEUP;
 				return 1;
 			}
@@ -627,6 +627,30 @@ mg_quit(void)
 }
 
 /* events */
+int
+mg_getevent(struct mg_event *event)
+{
+	/* this is kinda boiletplate-y but i cant figure out a better solution... */
+	XEvent xevnt;
+
+	if (XCheckTypedEvent(mg.dpy, ClientMessage, &xevnt))
+		/* check for clientmessage events first */
+		if (mg__handle_x_event(event, &xevnt))
+			return 1;
+	if (XCheckWindowEvent(mg.dpy, mg.win, MG__X_EVENT_MASK, &xevnt))
+		/*
+		 * MotionNotify events in xlib are kinda weird and completely clog up
+		 * the event queue, so check if we have any non-pointer-motion events
+		 */
+		if (mg__handle_x_event(event, &xevnt))
+			return 1;
+	if (XCheckWindowEvent(mg.dpy, mg.win, MG__X_EVENT_MASK | PointerMotionMask, &xevnt))
+		/* if not, throw in pointer events too */
+		if (mg__handle_x_event(event, &xevnt))
+			return 1;
+	return 0;
+}
+
 void
 mg_waitevent(struct mg_event *event)
 {
@@ -909,7 +933,7 @@ struct mg__state {
 	struct wl_touch *wl_touch;
 	struct xdg_toplevel *xdg_toplevel;
 	/* state */
-	uint32_t last_frame;
+	int configured;
 	struct mg__pointer_event mg_pointer_event;
 	struct xkb_state *xkb_state;
 	struct xkb_context *xkb_context;
@@ -925,9 +949,9 @@ struct mg__state {
 	int pending_resize;
 	uint32_t pending_key_down;
 	uint32_t pending_key_up;
-	struct mg_event pending_mouse_down;
-	struct mg_event pending_mouse_up;
-	struct mg_event pending_mouse_motion;
+	enum mg_mouse_btn pending_mouse_down;
+	enum mg_mouse_btn pending_mouse_up;
+	int pending_mouse_motion_x, pending_mouse_motion_y;
 
 	jmp_buf err_return;
 };
@@ -1076,25 +1100,22 @@ mg__handle_wl_event(struct mg_event *event)
 		event->key = mg.pending_key_up;
 		mg.pending_key_up = 0;
 		return 1;
-	} else if (mg.pending_mouse_down.type != MG_NOEVENT) {
+	} else if (mg.pending_mouse_down != MG_MOUSE_NO_BUTTON) {
 		event->type = MG_MOUSEDOWN;
-		event->button = mg.pending_mouse_down.button;
-		event->x = mg.pending_mouse_down.x;
-		event->y = mg.pending_mouse_down.y;
-		mg.pending_mouse_down.type = MG_NOEVENT;
+		event->button = mg.pending_mouse_down;
+		mg.pending_mouse_down = MG_MOUSE_NO_BUTTON;
 		return 1;
-	} else if (mg.pending_mouse_up.type != MG_NOEVENT) {
+	} else if (mg.pending_mouse_up != MG_MOUSE_NO_BUTTON) {
 		event->type = MG_MOUSEUP;
-		event->button = mg.pending_mouse_up.button;
-		event->x = mg.pending_mouse_up.x;
-		event->y = mg.pending_mouse_up.y;
-		mg.pending_mouse_up.type = MG_NOEVENT;
+		event->button = mg.pending_mouse_up;
+		mg.pending_mouse_up = MG_MOUSE_NO_BUTTON;
 		return 1;
-	} else if (mg.pending_mouse_motion.type != MG_NOEVENT) {
+	} else if (mg.pending_mouse_motion_x >= 0) {
 		event->type = MG_MOUSEMOTION;
-		event->x = mg.pending_mouse_motion.x;
-		event->y = mg.pending_mouse_motion.y;
-		mg.pending_mouse_motion.type = MG_NOEVENT;
+		event->x = mg.pending_mouse_motion_x;
+		event->y = mg.pending_mouse_motion_y;
+		mg.pending_mouse_motion_x = -1;
+		mg.pending_mouse_motion_y = -1;
 		return 1;
 	}
 	return 0;
@@ -1278,9 +1299,8 @@ mg__wl_pointer_frame(void *data, MG_UNUSED struct wl_pointer *wl_pointer)
 
 	if ((event->event_mask & MG__POINTER_EVENT_ENTER) ||
 			(event->event_mask & MG__POINTER_EVENT_MOTION)) {
-		mg_state->pending_mouse_motion.type = MG_MOUSEMOTION;
-		mg_state->pending_mouse_motion.x = wl_fixed_to_int(event->surface_x);
-		mg_state->pending_mouse_motion.y = wl_fixed_to_int(event->surface_y);
+		mg_state->pending_mouse_motion_x = wl_fixed_to_int(event->surface_x);
+		mg_state->pending_mouse_motion_y = wl_fixed_to_int(event->surface_y);
 	}
 
 	if (event->event_mask & MG__POINTER_EVENT_BUTTON && event->button >= BTN_LEFT &&
@@ -1310,17 +1330,10 @@ mg__wl_pointer_frame(void *data, MG_UNUSED struct wl_pointer *wl_pointer)
 			break;
 		}
 		if (set) {
-			if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
-				mg_state->pending_mouse_down.type = MG_MOUSEDOWN;
-				mg_state->pending_mouse_down.button = button;
-				mg_state->pending_mouse_down.x = wl_fixed_to_int(event->surface_x);
-				mg_state->pending_mouse_down.y = wl_fixed_to_int(event->surface_y);
-			} else {
-				mg_state->pending_mouse_up.type = MG_MOUSEUP;
-				mg_state->pending_mouse_up.button = button;
-				mg_state->pending_mouse_up.x = wl_fixed_to_int(event->surface_x);
-				mg_state->pending_mouse_up.y = wl_fixed_to_int(event->surface_y);
-			}
+			if (event->state == WL_POINTER_BUTTON_STATE_PRESSED)
+				mg_state->pending_mouse_down = button;
+			else
+				mg_state->pending_mouse_up = button;
 		}
 	}
 
@@ -1542,6 +1555,7 @@ mg__xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t 
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	struct wl_buffer *buffer;
+	++mg_state->configured;
 	xdg_surface_ack_configure(xdg_surface, serial);
 
 	buffer = mg__draw_frame(mg_state);
@@ -1643,6 +1657,7 @@ static const struct wl_registry_listener wl_registry_listener = {
 void
 mg_init(int w, int h, const char *title, jmp_buf err_return)
 {
+	mg.configured = 0;
 	mg.closed = 0;
 	mg.bgcolor = 0x00000000;
 	mg.color = 0x00FFFFFF;
@@ -1663,9 +1678,10 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.pending_resize = 0;
 	mg.pending_key_down = 0;
 	mg.pending_key_up = 0;
-	mg.pending_mouse_down.type = MG_NOEVENT;
-	mg.pending_mouse_up.type = MG_NOEVENT;
-	mg.pending_mouse_motion.type = MG_NOEVENT;
+	mg.pending_mouse_down = MG_MOUSE_NO_BUTTON;
+	mg.pending_mouse_up = MG_MOUSE_NO_BUTTON;
+	mg.pending_mouse_motion_x = -1;
+	mg.pending_mouse_motion_y = -1;
 
 	if (!(mg.wl_display = wl_display_connect(NULL)))
 		MG__ERROR(MG_INIT_FAILED);
@@ -1684,6 +1700,9 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 			&mg__xdg_toplevel_listener, &mg);
 	xdg_toplevel_set_title(mg.xdg_toplevel, title);
 	wl_surface_commit(mg.wl_surface);
+
+	while (mg.configured < 2)
+		wl_display_dispatch(mg.wl_display);
 }
 
 const char *
@@ -1711,6 +1730,18 @@ mg_quit(void)
 }
 
 /* events */
+int
+mg_getevent(struct mg_event *event)
+{
+	while (wl_display_prepare_read(mg.wl_display) < 0)
+		wl_display_dispatch_pending(mg.wl_display);
+
+	wl_display_flush(mg.wl_display);
+	wl_display_read_events(mg.wl_display);
+	wl_display_dispatch_pending(mg.wl_display);
+	return mg__handle_wl_event(event);
+}
+
 void
 mg_waitevent(struct mg_event *event)
 {
