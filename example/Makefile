@@ -1,22 +1,23 @@
 .POSIX:
 
-cc      = cc
-output  = example
-sources = example.c
-headers = ../minigraphics.h
+CC      = cc
+SRC     = example.c
+HEADERS = ../minigraphics.h
 
-wflags  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wconversion -Wstrict-prototypes -Wdeprecated
-cflags  = -O3 $(wflags)
+WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wconversion -Wstrict-prototypes -Wdeprecated
+CFLAGS  = -O3 $(WFLAGS)
 
-xflags  = -lX11 -DMG_BACKEND_X11
-wlflags = -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
-wlprtcl = xdg-shell-protocol.c ../xdg-shell-client-protocol.h
+X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
+WL_CFLAGS   = -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
+WL_PROTOCOL = xdg-shell-protocol.c ../xdg-shell-client-protocol.h
 
-x11: $(sources) $(headers)
-	$(cc) $(xflags) $(cflags) -o $(output)-x11 $(sources)
+all: x11 wayland
 
-wayland: $(sources) $(headers) $(wlprtcl)
-	$(cc) $(wlflags) $(cflags) -o $(output)-wayland xdg-shell-protocol.c $(sources)
+x11: $(SRC) $(HEADERS)
+	$(CC) $(X11_CFLAGS) $(CFLAGS) -o example-x11 $(SRC)
+
+wayland: $(SRC) $(HEADERS) $(WL_PROTOCOL)
+	$(CC) $(WL_CFLAGS) $(CFLAGS) -o example-wayland xdg-shell-protocol.c $(SRC)
 xdg-shell-protocol.c: /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
 	wayland-scanner private-code \
 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
@@ -27,4 +28,4 @@ xdg-shell-protocol.c: /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xm
 		> ../xdg-shell-client-protocol.h
 
 clean:
-	rm -f $(output)-x11 $(output)-wayland $(wlprtcl) *.o
+	rm -f example-x11 example-wayland $(WL_PROTOCOL) *.o
