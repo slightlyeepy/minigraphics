@@ -1667,7 +1667,9 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.pending_mouse_up.type = MG_NOEVENT;
 	mg.pending_mouse_motion.type = MG_NOEVENT;
 
-	mg.wl_display = wl_display_connect(NULL);
+	if (!(mg.wl_display = wl_display_connect(NULL)))
+		MG__ERROR(MG_INIT_FAILED);
+
 	mg.wl_registry = wl_display_get_registry(mg.wl_display);
 	mg.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	wl_registry_add_listener(mg.wl_registry, &wl_registry_listener, &mg);
