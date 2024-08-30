@@ -8,7 +8,7 @@ WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement
 CFLAGS  = -O3 $(WFLAGS)
 
 X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
-WL_CFLAGS   = -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
+WL_CFLAGS   = -lrt -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
 WL_PROTOCOL = xdg-shell-protocol.c ../xdg-shell-client-protocol.h
 
 all: x11 wayland

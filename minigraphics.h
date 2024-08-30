@@ -855,6 +855,12 @@ mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
  * WAYLAND BACKEND
  */
 #if defined(MG_BACKEND_WAYLAND)
+
+#if _POSIX_C_SOURCE < 200112L
+#undef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif /* _POSIX_C_SOURCE < 200112L */
+
 #if defined(__linux__)
 #include <linux/input-event-codes.h>
 #else

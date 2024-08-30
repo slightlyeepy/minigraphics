@@ -14,6 +14,14 @@ your choice between MIT/public domain, see [the header](minigraphics.h) for more
 
 the main documentation is located in [the header](minigraphics.h) itself as comments; you might also want to see [the example program](example/example.c) for a practical example for a program/build system.
 
+# dependencies
+
+- POSIX.1-2001 or later compliant standard C library
+- libxkbcommon
+- libX11 (X11 backend only)
+- libwayland + wayland-protocols (Wayland backend only)
+- POSIX.1-2001 or later compliant standard realtime library (`-lrt`) (Wayland backend only)
+
 # goals
 
 - simple / easy to use API
