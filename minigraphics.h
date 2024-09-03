@@ -400,6 +400,7 @@ struct mg__state {
 	Atom wmdeletewin;
 	GC gc;
 	Colormap colormap;
+	int depth;
 
 	unsigned long black, white;
 	unsigned long bgcolor, color;
@@ -566,6 +567,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.screen = DefaultScreen(mg.dpy);
 	mg.root = DefaultRootWindow(mg.dpy);
 	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
+	mg.depth = DefaultDepth(mg.dpy, mg.screen);
 	mg.bgcolor = mg.black = BlackPixel(mg.dpy, mg.screen);
 	mg.color = mg.white = WhitePixel(mg.dpy, mg.screen);
 
@@ -700,45 +702,53 @@ mg_drawrect(int x1, int y1, int x2, int y2)
 void
 mg_drawtext(int x, int y, const char *text, int size)
 {
-	if (size < 1) {
-		return;
-	} else if (size == 1) {
+	size_t i;
+	int points = 0;
+	int px, py; /* point x, point y */
+	int dx = 0; /* draw x */
+	size_t len = strlen(text);
+	if (size == 1) {
 		XPoint letter[64];
-		size_t i;
-		int points = 0;
-		int px, py; /* point x, point y */
-		int dx = x; /* draw x */
+		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8), 8, (unsigned int)mg.depth);
+		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
+		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8), 8);
+		XSetForeground(mg.dpy, mg.gc, mg.color);
 
-		for (i = 0; i < strlen(text); ++i) {
+		for (i = 0; i < len; ++i) {
 			for (py = 0; py < 8; ++py) {
 				for (px = 0; px < 8; ++px) {
 					if (text[i] >= 0x20 && text[i] <= 0x7e &&
 							(mg__font[text[i] - 0x20][py] & 1 << px)) {
 						letter[points].x = (short)(dx + px);
-						letter[points].y = (short)(y + py);
+						letter[points].y = (short)py;
 						++points;
 					}
 				}
 			}
 			dx += 8;
 			if (points)
-				XDrawPoints(mg.dpy, mg.win, mg.gc, letter, points, CoordModeOrigin);
+				XDrawPoints(mg.dpy, pixmap, mg.gc, letter, points, CoordModeOrigin);
 			points = 0;
 		}
-	} else {
-		XRectangle letter[64];
-		size_t i;
-		int points = 0;
-		int px, py; /* point x, point y */
-		int dx = x; /* draw x */
 
-		for (i = 0; i < strlen(text); ++i) {
+		XCopyArea(mg.dpy, pixmap, mg.win, mg.gc, 0, 0, (unsigned int)len * 8, 8, x, y);
+		XFreePixmap(mg.dpy, pixmap);
+	} else if (size > 1) {
+		XRectangle letter[64];
+		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8 * (size_t)size),
+				(unsigned int)(8 * size), (unsigned int)mg.depth);
+		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
+		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8 * (size_t)size),
+				(unsigned int)(8 * size));
+		XSetForeground(mg.dpy, mg.gc, mg.color);
+
+		for (i = 0; i < len; ++i) {
 			for (py = 0; py < 8; ++py) {
 				for (px = 0; px < 8; ++px) {
 					if (text[i] >= 0x20 && text[i] <= 0x7e &&
 							(mg__font[text[i] - 0x20][py] & 1 << px)) {
 						letter[points].x = (short)(dx + (px * size));
-						letter[points].y = (short)(y + (py * size));
+						letter[points].y = (short)(py * size);
 						letter[points].width = (unsigned short)size;
 						letter[points].height = (unsigned short)size;
 						++points;
@@ -747,9 +757,13 @@ mg_drawtext(int x, int y, const char *text, int size)
 			}
 			dx += 8 * size;
 			if (points)
-				XFillRectangles(mg.dpy, mg.win, mg.gc, letter, points);
+				XFillRectangles(mg.dpy, pixmap, mg.gc, letter, points);
 			points = 0;
 		}
+
+		XCopyArea(mg.dpy, pixmap, mg.win, mg.gc, 0, 0, (unsigned int)(len * 8 * (size_t)size),
+				(unsigned int)(8 * size), x, y);
+		XFreePixmap(mg.dpy, pixmap);
 	}
 }
 
