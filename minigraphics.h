@@ -13,26 +13,48 @@
  * ===========================================================================
  * USAGE
  *
+ * if you are planning to use the Wayland backend, read the
+ * "WAYLAND PROTOCOLS" section below.
+ *
  * include this header wherever you need it as usual. in ONE file, add:
  * 	#define MG_IMPLEMENTATION
  * before the #include for this header.
  *
- * to make the implementation private to the file that generates it, also add:
- * 	#define MG_STATIC
- *
  * additionally, you'll need to define ONE of these macros:
  * 	#define MG_BACKEND_X11
  * 	#define MG_BACKEND_WAYLAND
- * to use one of the respective backends. this is only necessary in the file
- * that includes the implementation, but can be defined in other files too.
+ * to use one of the respective backends. the same backend must be defined in
+ * ANY file that includes this header.
+ *
+ * to make the implementation private to the file that generates it, also add:
+ * 	#define MG_STATIC
  *
  * by default, __attribute__((__unused__)) is used if __GNUC__ is defined;
  * you can override this by defining MG_UNUSED to some value to be used
  * instead of the attribute, or setting it to an empty value:
  * 	#define MG_UNUSED
  *
- * see below for the docs.
- * see the example program for the general structure of a simple program.
+ * see the "DOCS" section for the API documentation.
+ * see the examples directory for example programs.
+ *
+ * ===========================================================================
+ * WAYLAND PROTOCOLS
+ *
+ * if you are planning to use the Wayland backend, you'll need the header
+ * "xdg-shell-client-protocol.h" in the same directory as this header,
+ * AND you'll need to add "xdg-shell-protocol.c" to your sources.
+ *
+ * to generate these files, make sure you have wayland-protocols and
+ * wayland-scanner (typically provided by a package named 'wayland' or
+ * 'wayland-devel') installed and then run:
+ *
+ * wayland-scanner private-code \
+ * 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+ * 		> xdg-shell-protocol.c
+ *
+ * wayland-scanner client-header \
+ * 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+ * 		> xdg-shell-client-protocol.h
  */
 #if !defined(MG_H)
 #define MG_H
@@ -40,6 +62,14 @@
 #include <stdint.h>
 
 #include <xkbcommon/xkbcommon-keysyms.h>
+
+#if !defined(MG_BACKEND_X11) && !defined(MG_BACKEND_WAYLAND)
+#error please define a backend for minigraphics.
+#elif defined(MG_BACKEND_X11) && defined(MG_BACKEND_WAYLAND)
+#error only one backend may be defined.
+#elif defined(MG_BACKEND_X11)
+#include <X11/Xlib.h>
+#endif
 
 #if defined(MG_STATIC)
 #define MG__DEF static
@@ -54,6 +84,19 @@
 #else
 #define MG_UNUSED
 #endif /* defined(__GNUC__) */
+
+#if defined(MG_BACKEND_X11)
+struct mg_image {
+	XImage *ximage;
+	Pixmap pixmap;
+	uint32_t width, height;
+};
+#elif defined(MG_BACKEND_WAYLAND)
+struct mg_image {
+	uint8_t *data;
+	uint32_t width, height;
+};
+#endif /* defined(MG_BACKEND_X11) || defined(MG_BACKEND_WAYLAND) */
 
 #endif /* !defined(MG_UNUSED) */
 
@@ -70,6 +113,7 @@ extern int mg_height;
 enum mg_error {
 	MG_INIT_FAILED,
 	MG_OUT_OF_MEMORY,
+	MG_UNSUPPORTED_COLOR_DEPTH,
 	MG_UNSUPPORTED_KEYMAP
 };
 /*
@@ -226,7 +270,8 @@ MG__DEF void mg_fillrect(int x1, int y1, int x2, int y2);
 
 /*
  * draw a filled-in triangle with the current drawing color,
- * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
+ * with its vertice
+ * return img;s being at the points (x1, y1), (x2, y2), and (x3, y3).
  */
 MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 
@@ -237,6 +282,35 @@ MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 MG__DEF void mg_flush(void);
 
 /*
+ * the following functions can be used to draw images:
+ *
+ * create an image from the memory buffer 'data', which should contain valid
+ * RGB data, with each pixel being represented by three values.
+ * 'width' and 'height' specify the image's width and height in pixels.
+ *
+ * if 'width' does not match image's width or 'height' is larger than
+ * the image's height, the behaviour is undefined.
+ *
+ * the memory buffer referenced by the 'data' field is copied and changes
+ * to it after the image creation will not affect the image. for example,
+ * if 'data' is a dynamically allocated object, it can be freed after the
+ * call to mg_image_create().
+ */
+MG__DEF struct mg_image *mg_image_create(uint8_t *data, uint32_t width, uint32_t height);
+
+/* draw an image with the location of the top-left corner being (x, y). */
+MG__DEF void mg_image_draw(struct mg_image *image, int x, int y);
+
+/*
+ * free the memory allocated for an image. attempting to use this image
+ * again is undefined behaviour.
+ */
+MG__DEF void mg_image_free(struct mg_image *image);
+
+/*
+ * to change the colors used by the mg_draw/mg_fill functions, use one of
+ * the following:
+ *
  * set the current background color to the color specified by the
  * RGB value (r, g, b).
  * the default is (0, 0, 0) (black).
@@ -259,12 +333,6 @@ MG__DEF void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
  * IMPLEMENTATION
  */
 #if defined(MG_IMPLEMENTATION)
-
-#if !defined(MG_BACKEND_X11) && !defined(MG_BACKEND_WAYLAND)
-#error please define a backend for minigraphics.
-#elif defined(MG_BACKEND_X11) && defined(MG_BACKEND_WAYLAND)
-#error only one backend may be defined.
-#endif
 
 /*
  * ===========================================================================
@@ -372,6 +440,7 @@ static const unsigned char mg__font[95][8] = {
 static const char *mg__strerrors[] = {
 	"library initialization failed",
 	"out of memory",
+	"unsupported color depth",
 	"unsupported keymap"
 };
 
@@ -383,8 +452,9 @@ static const char *mg__strerrors[] = {
 #include <stdlib.h>
 #include <string.h>
 
-#include <X11/Xlib.h>
+/* #include <X11/Xlib.h> (already included in the header) */
 #include <X11/XKBlib.h>
+#include <X11/Xutil.h>
 
 /* macros */
 #define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
@@ -400,7 +470,7 @@ struct mg__state {
 	Atom wmdeletewin;
 	GC gc;
 	Colormap colormap;
-	int depth;
+	unsigned int depth;
 
 	unsigned long black, white;
 	unsigned long bgcolor, color;
@@ -567,7 +637,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.screen = DefaultScreen(mg.dpy);
 	mg.root = DefaultRootWindow(mg.dpy);
 	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
-	mg.depth = DefaultDepth(mg.dpy, mg.screen);
+	mg.depth = (unsigned int)DefaultDepth(mg.dpy, mg.screen);
 	mg.bgcolor = mg.black = BlackPixel(mg.dpy, mg.screen);
 	mg.color = mg.white = WhitePixel(mg.dpy, mg.screen);
 
@@ -709,7 +779,7 @@ mg_drawtext(int x, int y, const char *text, int size)
 	size_t len = strlen(text);
 	if (size == 1) {
 		XPoint letter[64];
-		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8), 8, (unsigned int)mg.depth);
+		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8), 8, mg.depth);
 		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
 		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8), 8);
 		XSetForeground(mg.dpy, mg.gc, mg.color);
@@ -736,7 +806,7 @@ mg_drawtext(int x, int y, const char *text, int size)
 	} else if (size > 1) {
 		XRectangle letter[64];
 		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8 * (size_t)size),
-				(unsigned int)(8 * size), (unsigned int)mg.depth);
+				(unsigned int)(8 * size), mg.depth);
 		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
 		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8 * (size_t)size),
 				(unsigned int)(8 * size));
@@ -805,6 +875,59 @@ void
 mg_flush(void)
 {
 	XFlush(mg.dpy);
+}
+
+/* images */
+struct mg_image *
+mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
+{
+	if (mg.depth >= 24) {
+		struct mg_image *img = malloc(sizeof(struct mg_image));
+		size_t i = 0, j = 0, k = 0;
+
+		if (!img)
+			MG__ERROR(MG_OUT_OF_MEMORY)
+		img->pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
+		img->ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height,
+				32, (int)(width * 4));
+		img->ximage->data = malloc(width * height * 4);
+		if (!img->ximage->data)
+			MG__ERROR(MG_OUT_OF_MEMORY)
+
+		for (; i < width * height; ++i) {
+			img->ximage->data[k] = (char)(data[j + 2]);
+			img->ximage->data[k + 1] = (char)(data[j + 1]);
+			img->ximage->data[k + 2] = (char)(data[j]);
+			j += 3;
+			k += 4;
+		}
+
+		XInitImage(img->ximage);
+
+		img->width = width;
+		img->height = height;
+
+		return img;
+	}
+	MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
+}
+
+void
+mg_image_draw(struct mg_image *image, int x, int y)
+{
+	XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
+	XFillRectangle(mg.dpy, image->pixmap, mg.gc, 0, 0, image->width, image->height);
+	XSetForeground(mg.dpy, mg.gc, mg.color);
+	XPutImage(mg.dpy, image->pixmap, mg.gc, image->ximage, 0, 0, 0, 0, image->width, image->height);
+	XCopyArea(mg.dpy, image->pixmap, mg.win, mg.gc, 0, 0, image->width, image->height, x, y);
+}
+
+void
+mg_image_free(struct mg_image *image)
+{
+	XDestroyImage(image->ximage);
+	XFreePixmap(mg.dpy, image->pixmap);
+	free(image);
 }
 
 /* functions to set colors */
@@ -1504,7 +1627,7 @@ mg__draw_frame(struct mg__state *mg_state)
 	data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (data == MAP_FAILED) {
 		close(fd);
-		MG__ERROR(MG_OUT_OF_MEMORY);
+		MG__ERROR(MG_OUT_OF_MEMORY)
 	}
 
 	/* create a wayland buffer object */
@@ -1542,7 +1665,7 @@ mg__xdg_toplevel_configure(void *data, MG_UNUSED struct xdg_toplevel *xdg_toplev
 		size = stride * (size_t)mg_height;
 
 		if (!(new_draw_buf = calloc(size, 1)))
-			MG__ERROR(MG_OUT_OF_MEMORY);
+			MG__ERROR(MG_OUT_OF_MEMORY)
 		mg__frametrimcpy(new_draw_buf, mg_state->draw_buf,
 			mg_state->buf_width, (size_t)mg_width,
 			mg_state->buf_stride, stride,
@@ -1679,6 +1802,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 {
 	mg.configured = 0;
 	mg.closed = 0;
+
+	/* remember we're using XRGB */
 	mg.bgcolor = 0x00000000;
 	mg.color = 0x00FFFFFF;
 
@@ -1692,7 +1817,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	*mg.err_return = *err_return;
 
 	if (!(mg.draw_buf = calloc(mg.buf_size, 1)))
-		MG__ERROR(MG_OUT_OF_MEMORY);
+		MG__ERROR(MG_OUT_OF_MEMORY)
 
 	mg.pending_quit = 0;
 	mg.pending_resize = 0;
@@ -1704,7 +1829,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.pending_mouse_motion_y = -1;
 
 	if (!(mg.wl_display = wl_display_connect(NULL)))
-		MG__ERROR(MG_INIT_FAILED);
+		MG__ERROR(MG_INIT_FAILED)
 
 	mg.wl_registry = wl_display_get_registry(mg.wl_display);
 	mg.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -1953,6 +2078,52 @@ mg_flush(void)
 		wl_surface_damage_buffer(mg.wl_surface, 0, 0, INT32_MAX, INT32_MAX);
 		wl_surface_commit(mg.wl_surface);
 	}
+}
+
+/* images */
+struct mg_image *
+mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
+{
+	struct mg_image *img = malloc(sizeof(struct mg_image));
+	if (!img)
+		MG__ERROR(MG_OUT_OF_MEMORY)
+
+	img->data = malloc(width * height * 3);
+	if (!img->data)
+		MG__ERROR(MG_OUT_OF_MEMORY)
+
+	memcpy(img->data, data, width * height * 3);
+	img->width = width;
+	img->height = height;
+	return img;
+}
+
+void
+mg_image_draw(struct mg_image *image, int x, int y)
+{
+	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
+		size_t i = 0; /* position in image buffer */
+		int dx, dy = 0; /* x offset / y offset to draw at */
+		for (; dy < (int)image->height; ++dy) {
+			for (dx = 0; dx < (int)image->width; ++dx) {
+				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
+						(dy + y) < (int)mg.buf_height) {
+					/* remember we're using XRGB */
+					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = (uint32_t)
+						((image->data[i] << 16) | (image->data[i + 1] << 8) |
+						 image->data[i + 2]);
+				}
+				i += 3;
+			}
+		}
+	}
+}
+
+void
+mg_image_free(struct mg_image *image)
+{
+	free(image->data);
+	free(image);
 }
 
 /* functions to set colors */

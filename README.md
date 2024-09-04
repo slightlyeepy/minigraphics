@@ -4,6 +4,7 @@ current features include:
 - X11 and Wayland backends
 - drawing pixels/lines/triangles/rectangles/circles, both filled and outlined
 - drawing ASCII text in an 8x8 bitmap font
+- drawing images (RGB data, not image formats like png/jpg)
 - SDL-like event handling loop
 
 # license
@@ -12,7 +13,7 @@ your choice between MIT/public domain, see [the header](minigraphics.h) for more
 
 # docs
 
-the main documentation is located in [the header](minigraphics.h) itself as comments; you might also want to see [the example program](example/example.c) for a practical example for a program/build system.
+the main documentation is located in [the header](minigraphics.h) itself as comments; you might also want to see [the example programs](examples).
 
 # dependencies
 
