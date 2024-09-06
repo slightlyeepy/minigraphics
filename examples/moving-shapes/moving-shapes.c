@@ -47,10 +47,6 @@ main(void)
 	/* create a 640x480 window */
 	mg_init(640, 480, "moving shapes", env);
 
-	/* set colors */
-	mg_setbgcolor(255, 255, 255);
-	mg_setdrawcolor(0, 0, 0);
-
 	xpos = 0;
 	ypos = 200;
 

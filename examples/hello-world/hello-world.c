@@ -37,10 +37,6 @@ main(void)
 	/* create a 640x480 window */
 	mg_init(640, 480, "hello world", env);
 
-	/* set colors */
-	mg_setbgcolor(255, 255, 255);
-	mg_setdrawcolor(0, 0, 0);
-
 	/* draw text */
 	draw_centered_text("hello world", 3);
 

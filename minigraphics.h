@@ -313,14 +313,14 @@ MG__DEF void mg_image_free(struct mg_image *image);
  *
  * set the current background color to the color specified by the
  * RGB value (r, g, b).
- * the default is (0, 0, 0) (black).
+ * the default is (255, 255, 255) (white).
  */
 MG__DEF void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
 
 /*
  * set the current drawing color to the color specified by the
  * RGB value (r, g, b).
- * the default is (255, 255, 255) (white).
+ * the default is (0, 0, 0) (black).
  */
 MG__DEF void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
 
@@ -638,8 +638,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.root = DefaultRootWindow(mg.dpy);
 	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
 	mg.depth = (unsigned int)DefaultDepth(mg.dpy, mg.screen);
-	mg.bgcolor = mg.black = BlackPixel(mg.dpy, mg.screen);
-	mg.color = mg.white = WhitePixel(mg.dpy, mg.screen);
+	mg.bgcolor = mg.white = WhitePixel(mg.dpy, mg.screen);
+	mg.color = mg.black = BlackPixel(mg.dpy, mg.screen);
 
 	/* create window */
 	mg.win = XCreateSimpleWindow(mg.dpy, mg.root, 0, 0,
@@ -1804,8 +1804,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.closed = 0;
 
 	/* remember we're using XRGB */
-	mg.bgcolor = 0x00000000;
-	mg.color = 0x00FFFFFF;
+	mg.bgcolor = 0x00FFFFFF;
+	mg.color = 0x00000000;
 
 	mg_width = w;
 	mg_height = h;
