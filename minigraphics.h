@@ -2103,7 +2103,7 @@ struct mg_image *
 mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
 {
 	if (width == 0 || height == 0) {
-		return;
+		return NULL;
 	} else {
 		struct mg_image *img = malloc(sizeof(struct mg_image));
 		if (!img)
