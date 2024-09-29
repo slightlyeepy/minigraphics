@@ -2,10 +2,12 @@ minigraphics is a small single-header library for drawing primitive shapes and t
 
 current features include:
 - X11 and Wayland backends
+- SDL-like event handling loop
+- drawing from a memory buffer
 - drawing pixels/lines/triangles/rectangles/circles, both filled and outlined
 - drawing ASCII text in an 8x8 bitmap font
-- drawing images (RGB data, not image formats like png/jpg)
-- SDL-like event handling loop
+
+minigraphics provides two versions: a "small" one that can only draw things from a memory buffer, and a "regular" one that additionally provides an interface to draw shapes and text.
 
 # license
 
@@ -13,7 +15,7 @@ your choice between MIT/public domain, see [the header](minigraphics.h) for more
 
 # docs
 
-the main documentation is located in [the header](minigraphics.h) itself as comments; you might also want to see [the example programs](examples).
+the main documentation is located in [the header](minigraphics.h) ([small edition](sminigraphics.h)) itself as comments; you might also want to see [the example programs](examples).
 
 # dependencies
 

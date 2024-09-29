@@ -1,6 +1,7 @@
 /* See UNLICENSE file for copyright and license details. */
 #include <arpa/inet.h>
 
+#include <errno.h>
 #include <math.h>
 #include <setjmp.h>
 #include <stdarg.h>

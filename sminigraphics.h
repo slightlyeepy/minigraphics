@@ -1,5 +1,6 @@
 /*
  * minigraphics in-development (versioned releases will come later)
+ * small edition
  *
  * NOTE: minigraphics uses an indentifier called 'mg' and identifiers
  * beginning with 'mg__' or 'MG__' internally; using these may cause
@@ -84,19 +85,6 @@
 #else
 #define MG_UNUSED
 #endif /* defined(__GNUC__) */
-
-#if defined(MG_BACKEND_X11)
-struct mg_image {
-	XImage *ximage;
-	Pixmap pixmap;
-	uint32_t width, height;
-};
-#elif defined(MG_BACKEND_WAYLAND)
-struct mg_image {
-	uint8_t *data;
-	uint32_t width, height;
-};
-#endif /* defined(MG_BACKEND_X11) || defined(MG_BACKEND_WAYLAND) */
 
 #endif /* !defined(MG_UNUSED) */
 
@@ -223,60 +211,18 @@ MG__DEF void mg_waitevent(struct mg_event *event);
 MG__DEF void mg_clear(void);
 
 /*
- * draw an outline of a circle using the current drawing color,
- * with its middle point being located at (x, y) and its radius being 'r'.
+ * draw the contents of the memory buffer 'data', which should contain valid
+ * RGB data, with each pixel being represented by three values.
+ * 'width' and 'height' specify the image's width and height in pixels.
+ *
+ * if 'width' does not match image's width or 'height' is larger than
+ * the image's height, the behaviour is undefined.
+ *
+ * if either 'width' or 'height' are zero, nothing is drawn.
+ *
+ * the top-left corner of the drawn image will be at (x, y).
  */
-MG__DEF void mg_drawcircle(int x, int y, int r);
-
-/*
- * draw a line from the point (x1, y1) to the point (x2, y2) using the
- * current drawing color.
- */
-MG__DEF void mg_drawline(int x1, int y1, int x2, int y2);
-
-/* draw a pixel at the point (x, y) using the current drawing color. */
-MG__DEF void mg_drawpixel(int x, int y);
-
-/*
- * draw an outline of a rectangle using the current drawing color,
- * with its top-left point being located at (x1, y1) and its bottom-left
- * point being at (x2, y2).
- */
-MG__DEF void mg_drawrect(int x1, int y1, int x2, int y2);
-
-/*
- * draw a string in an 8x8 bitmap font using the current drawing color,
- * with the top-left corner of the first 8x8 character box being at (x, y).
- * the 'size' parameter specifies the font size, so a 'size' of 2 will draw
- * 16x16 text.
- */
-MG__DEF void mg_drawtext(int x, int y, const char *text, int size);
-
-/*
- * draw an outline of a triangle with the current drawing color,
- * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
- */
-MG__DEF void mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3);
-
-/*
- * draw a filled-in circle using the current drawing color,
- * with its middle point being located at (x, y) and its radius being 'r'.
- */
-MG__DEF void mg_fillcircle(int x, int y, int r);
-
-/*
- * draw a filled-in rectangle using the current drawing color,
- * with its top-left point being located at (x1, y1) and its bottom-left
- * point being at (x2, y2).
- */
-MG__DEF void mg_fillrect(int x1, int y1, int x2, int y2);
-
-/*
- * draw a filled-in triangle with the current drawing color,
- * with its vertice
- * return img;s being at the points (x1, y1), (x2, y2), and (x3, y3).
- */
-MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
+MG__DEF void mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y);
 
 /*
  * commit all changes to the window -- calling this is necessary to be
@@ -285,53 +231,11 @@ MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 MG__DEF void mg_flush(void);
 
 /*
- * the following functions can be used to draw images:
- *
- * create an image from the memory buffer 'data', which should contain valid
- * RGB data, with each pixel being represented by three values.
- * 'width' and 'height' specify the image's width and height in pixels.
- *
- * if 'width' does not match image's width or 'height' is larger than
- * the image's height, the behaviour is undefined.
- *
- * if either 'width' or 'height' are zero, a NULL pointer is returned.
- *
- * the memory buffer referenced by the 'data' field is copied and changes
- * to it after the image creation will not affect the image. for example,
- * if 'data' is a dynamically allocated object, it can be freed after the
- * call to mg_image_create().
- */
-MG__DEF struct mg_image *mg_image_create(uint8_t *data, uint32_t width, uint32_t height);
-
-/*
- * draw an image with the location of the top-left corner being (x, y).
- * if 'image' is a NULL pointer, nothing is drawn.
- */
-MG__DEF void mg_image_draw(struct mg_image *image, int x, int y);
-
-/*
- * free the memory allocated for an image. attempting to use this image
- * again is undefined behaviour.
- * if 'image' is a NULL pointer, nothing is done.
- */
-MG__DEF void mg_image_free(struct mg_image *image);
-
-/*
- * to change the colors used by the mg_draw/mg_fill functions, use one of
- * the following:
- *
  * set the current background color to the color specified by the
  * RGB value (r, g, b).
  * the default is (255, 255, 255) (white).
  */
 MG__DEF void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
-
-/*
- * set the current drawing color to the color specified by the
- * RGB value (r, g, b).
- * the default is (0, 0, 0) (black).
- */
-MG__DEF void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
 
 /* end of docs/header */
 
@@ -347,105 +251,6 @@ MG__DEF void mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b);
  * ===========================================================================
  * CONSTANTS
  */
-static const unsigned char mg__font[95][8] = {
-	/* make sure that (c >= 0x20 && c <= 0x7e) */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+0020 (space) */
-	{ 0x18, 0x3C, 0x3C, 0x18, 0x18, 0x00, 0x18, 0x00}, /* U+0021 (!) */
-	{ 0x36, 0x36, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+0022 (") */
-	{ 0x36, 0x36, 0x7F, 0x36, 0x7F, 0x36, 0x36, 0x00}, /* U+0023 (#) */
-	{ 0x0C, 0x3E, 0x03, 0x1E, 0x30, 0x1F, 0x0C, 0x00}, /* U+0024 ($) */
-	{ 0x00, 0x63, 0x33, 0x18, 0x0C, 0x66, 0x63, 0x00}, /* U+0025 (%) */
-	{ 0x1C, 0x36, 0x1C, 0x6E, 0x3B, 0x33, 0x6E, 0x00}, /* U+0026 (&) */
-	{ 0x06, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+0027 (') */
-	{ 0x18, 0x0C, 0x06, 0x06, 0x06, 0x0C, 0x18, 0x00}, /* U+0028 (() */
-	{ 0x06, 0x0C, 0x18, 0x18, 0x18, 0x0C, 0x06, 0x00}, /* U+0029 ()) */
-	{ 0x00, 0x66, 0x3C, 0xFF, 0x3C, 0x66, 0x00, 0x00}, /* U+002A (*) */
-	{ 0x00, 0x0C, 0x0C, 0x3F, 0x0C, 0x0C, 0x00, 0x00}, /* U+002B (+) */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C, 0x06}, /* U+002C (,) */
-	{ 0x00, 0x00, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00}, /* U+002D (-) */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C, 0x00}, /* U+002E (.) */
-	{ 0x60, 0x30, 0x18, 0x0C, 0x06, 0x03, 0x01, 0x00}, /* U+002F (/) */
-	{ 0x3E, 0x63, 0x73, 0x7B, 0x6F, 0x67, 0x3E, 0x00}, /* U+0030 (0) */
-	{ 0x0C, 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x3F, 0x00}, /* U+0031 (1) */
-	{ 0x1E, 0x33, 0x30, 0x1C, 0x06, 0x33, 0x3F, 0x00}, /* U+0032 (2) */
-	{ 0x1E, 0x33, 0x30, 0x1C, 0x30, 0x33, 0x1E, 0x00}, /* U+0033 (3) */
-	{ 0x38, 0x3C, 0x36, 0x33, 0x7F, 0x30, 0x78, 0x00}, /* U+0034 (4) */
-	{ 0x3F, 0x03, 0x1F, 0x30, 0x30, 0x33, 0x1E, 0x00}, /* U+0035 (5) */
-	{ 0x1C, 0x06, 0x03, 0x1F, 0x33, 0x33, 0x1E, 0x00}, /* U+0036 (6) */
-	{ 0x3F, 0x33, 0x30, 0x18, 0x0C, 0x0C, 0x0C, 0x00}, /* U+0037 (7) */
-	{ 0x1E, 0x33, 0x33, 0x1E, 0x33, 0x33, 0x1E, 0x00}, /* U+0038 (8) */
-	{ 0x1E, 0x33, 0x33, 0x3E, 0x30, 0x18, 0x0E, 0x00}, /* U+0039 (9) */
-	{ 0x00, 0x0C, 0x0C, 0x00, 0x00, 0x0C, 0x0C, 0x00}, /* U+003A (:) */
-	{ 0x00, 0x0C, 0x0C, 0x00, 0x00, 0x0C, 0x0C, 0x06}, /* U+003B (;) */
-	{ 0x18, 0x0C, 0x06, 0x03, 0x06, 0x0C, 0x18, 0x00}, /* U+003C (<) */
-	{ 0x00, 0x00, 0x3F, 0x00, 0x00, 0x3F, 0x00, 0x00}, /* U+003D (=) */
-	{ 0x06, 0x0C, 0x18, 0x30, 0x18, 0x0C, 0x06, 0x00}, /* U+003E (>) */
-	{ 0x1E, 0x33, 0x30, 0x18, 0x0C, 0x00, 0x0C, 0x00}, /* U+003F (?) */
-	{ 0x3E, 0x63, 0x7B, 0x7B, 0x7B, 0x03, 0x1E, 0x00}, /* U+0040 (@) */
-	{ 0x0C, 0x1E, 0x33, 0x33, 0x3F, 0x33, 0x33, 0x00}, /* U+0041 (A) */
-	{ 0x3F, 0x66, 0x66, 0x3E, 0x66, 0x66, 0x3F, 0x00}, /* U+0042 (B) */
-	{ 0x3C, 0x66, 0x03, 0x03, 0x03, 0x66, 0x3C, 0x00}, /* U+0043 (C) */
-	{ 0x1F, 0x36, 0x66, 0x66, 0x66, 0x36, 0x1F, 0x00}, /* U+0044 (D) */
-	{ 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x46, 0x7F, 0x00}, /* U+0045 (E) */
-	{ 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x06, 0x0F, 0x00}, /* U+0046 (F) */
-	{ 0x3C, 0x66, 0x03, 0x03, 0x73, 0x66, 0x7C, 0x00}, /* U+0047 (G) */
-	{ 0x33, 0x33, 0x33, 0x3F, 0x33, 0x33, 0x33, 0x00}, /* U+0048 (H) */
-	{ 0x1E, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* U+0049 (I) */
-	{ 0x78, 0x30, 0x30, 0x30, 0x33, 0x33, 0x1E, 0x00}, /* U+004A (J) */
-	{ 0x67, 0x66, 0x36, 0x1E, 0x36, 0x66, 0x67, 0x00}, /* U+004B (K) */
-	{ 0x0F, 0x06, 0x06, 0x06, 0x46, 0x66, 0x7F, 0x00}, /* U+004C (L) */
-	{ 0x63, 0x77, 0x7F, 0x7F, 0x6B, 0x63, 0x63, 0x00}, /* U+004D (M) */
-	{ 0x63, 0x67, 0x6F, 0x7B, 0x73, 0x63, 0x63, 0x00}, /* U+004E (N) */
-	{ 0x1C, 0x36, 0x63, 0x63, 0x63, 0x36, 0x1C, 0x00}, /* U+004F (O) */
-	{ 0x3F, 0x66, 0x66, 0x3E, 0x06, 0x06, 0x0F, 0x00}, /* U+0050 (P) */
-	{ 0x1E, 0x33, 0x33, 0x33, 0x3B, 0x1E, 0x38, 0x00}, /* U+0051 (Q) */
-	{ 0x3F, 0x66, 0x66, 0x3E, 0x36, 0x66, 0x67, 0x00}, /* U+0052 (R) */
-	{ 0x1E, 0x33, 0x07, 0x0E, 0x38, 0x33, 0x1E, 0x00}, /* U+0053 (S) */
-	{ 0x3F, 0x2D, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* U+0054 (T) */
-	{ 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x3F, 0x00}, /* U+0055 (U) */
-	{ 0x33, 0x33, 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x00}, /* U+0056 (V) */
-	{ 0x63, 0x63, 0x63, 0x6B, 0x7F, 0x77, 0x63, 0x00}, /* U+0057 (W) */
-	{ 0x63, 0x63, 0x36, 0x1C, 0x1C, 0x36, 0x63, 0x00}, /* U+0058 (X) */
-	{ 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x0C, 0x1E, 0x00}, /* U+0059 (Y) */
-	{ 0x7F, 0x63, 0x31, 0x18, 0x4C, 0x66, 0x7F, 0x00}, /* U+005A (Z) */
-	{ 0x1E, 0x06, 0x06, 0x06, 0x06, 0x06, 0x1E, 0x00}, /* U+005B ([) */
-	{ 0x03, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x40, 0x00}, /* U+005C (\) */
-	{ 0x1E, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1E, 0x00}, /* U+005D (]) */
-	{ 0x08, 0x1C, 0x36, 0x63, 0x00, 0x00, 0x00, 0x00}, /* U+005E (^) */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}, /* U+005F (_) */
-	{ 0x0C, 0x0C, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+0060 (`) */
-	{ 0x00, 0x00, 0x1E, 0x30, 0x3E, 0x33, 0x6E, 0x00}, /* U+0061 (a) */
-	{ 0x07, 0x06, 0x06, 0x3E, 0x66, 0x66, 0x3B, 0x00}, /* U+0062 (b) */
-	{ 0x00, 0x00, 0x1E, 0x33, 0x03, 0x33, 0x1E, 0x00}, /* U+0063 (c) */
-	{ 0x38, 0x30, 0x30, 0x3e, 0x33, 0x33, 0x6E, 0x00}, /* U+0064 (d) */
-	{ 0x00, 0x00, 0x1E, 0x33, 0x3f, 0x03, 0x1E, 0x00}, /* U+0065 (e) */
-	{ 0x1C, 0x36, 0x06, 0x0f, 0x06, 0x06, 0x0F, 0x00}, /* U+0066 (f) */
-	{ 0x00, 0x00, 0x6E, 0x33, 0x33, 0x3E, 0x30, 0x1F}, /* U+0067 (g) */
-	{ 0x07, 0x06, 0x36, 0x6E, 0x66, 0x66, 0x67, 0x00}, /* U+0068 (h) */
-	{ 0x0C, 0x00, 0x0E, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* U+0069 (i) */
-	{ 0x30, 0x00, 0x30, 0x30, 0x30, 0x33, 0x33, 0x1E}, /* U+006A (j) */
-	{ 0x07, 0x06, 0x66, 0x36, 0x1E, 0x36, 0x67, 0x00}, /* U+006B (k) */
-	{ 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x1E, 0x00}, /* U+006C (l) */
-	{ 0x00, 0x00, 0x33, 0x7F, 0x7F, 0x6B, 0x63, 0x00}, /* U+006D (m) */
-	{ 0x00, 0x00, 0x1F, 0x33, 0x33, 0x33, 0x33, 0x00}, /* U+006E (n) */
-	{ 0x00, 0x00, 0x1E, 0x33, 0x33, 0x33, 0x1E, 0x00}, /* U+006F (o) */
-	{ 0x00, 0x00, 0x3B, 0x66, 0x66, 0x3E, 0x06, 0x0F}, /* U+0070 (p) */
-	{ 0x00, 0x00, 0x6E, 0x33, 0x33, 0x3E, 0x30, 0x78}, /* U+0071 (q) */
-	{ 0x00, 0x00, 0x3B, 0x6E, 0x66, 0x06, 0x0F, 0x00}, /* U+0072 (r) */
-	{ 0x00, 0x00, 0x3E, 0x03, 0x1E, 0x30, 0x1F, 0x00}, /* U+0073 (s) */
-	{ 0x08, 0x0C, 0x3E, 0x0C, 0x0C, 0x2C, 0x18, 0x00}, /* U+0074 (t) */
-	{ 0x00, 0x00, 0x33, 0x33, 0x33, 0x33, 0x6E, 0x00}, /* U+0075 (u) */
-	{ 0x00, 0x00, 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x00}, /* U+0076 (v) */
-	{ 0x00, 0x00, 0x63, 0x6B, 0x7F, 0x7F, 0x36, 0x00}, /* U+0077 (w) */
-	{ 0x00, 0x00, 0x63, 0x36, 0x1C, 0x36, 0x63, 0x00}, /* U+0078 (x) */
-	{ 0x00, 0x00, 0x33, 0x33, 0x33, 0x3E, 0x30, 0x1F}, /* U+0079 (y) */
-	{ 0x00, 0x00, 0x3F, 0x19, 0x0C, 0x26, 0x3F, 0x00}, /* U+007A (z) */
-	{ 0x38, 0x0C, 0x0C, 0x07, 0x0C, 0x0C, 0x38, 0x00}, /* U+007B ({) */
-	{ 0x18, 0x18, 0x18, 0x00, 0x18, 0x18, 0x18, 0x00}, /* U+007C (|) */
-	{ 0x07, 0x0C, 0x0C, 0x38, 0x0C, 0x0C, 0x07, 0x00}, /* U+007D (}) */
-	{ 0x6E, 0x3B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+007E (~) */
-};
-
 static const char *mg__strerrors[] = {
 	"library initialization failed",
 	"out of memory",
@@ -481,8 +286,11 @@ struct mg__state {
 	Colormap colormap;
 	unsigned int depth;
 
-	unsigned long black, white;
-	unsigned long bgcolor, color;
+	unsigned long white;
+	unsigned long bgcolor;
+
+	Pixmap pixmap;
+	uint32_t pixmap_w, pixmap_h;
 
 	int closed;
 
@@ -648,7 +456,6 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.colormap = DefaultColormap(mg.dpy, mg.screen);
 	mg.depth = (unsigned int)DefaultDepth(mg.dpy, mg.screen);
 	mg.bgcolor = mg.white = WhitePixel(mg.dpy, mg.screen);
-	mg.color = mg.black = BlackPixel(mg.dpy, mg.screen);
 
 	/* create window */
 	mg.win = XCreateSimpleWindow(mg.dpy, mg.root, 0, 0,
@@ -656,6 +463,9 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.closed = 0;
 	mg_width = w;
 	mg_height = h;
+
+	/* mark the pixmap as "not created" */
+	mg.pixmap_w = mg.pixmap_h = 0;
 
 	/* name our window */
 	XStoreName(mg.dpy, mg.win, title);
@@ -676,7 +486,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	/* set GC colors */
 	XSetBackground(mg.dpy, mg.gc, mg.bgcolor);
 	XSetWindowBackground(mg.dpy, mg.win, mg.bgcolor);
-	XSetForeground(mg.dpy, mg.gc, mg.color);
+	XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
 
 	/* wait for window mapping */
 	for (;;) {
@@ -700,6 +510,9 @@ void
 mg_quit(void)
 {
 	if (!mg.closed) {
+		if (mg.pixmap_w != 0 && mg.pixmap_h != 0)
+			/* free the pixmap if it exists */
+			XFreePixmap(mg.dpy, mg.pixmap);
 		XFreeGC(mg.dpy, mg.gc);
 		XDestroyWindow(mg.dpy, mg.win);
 		XCloseDisplay(mg.dpy);
@@ -753,131 +566,49 @@ mg_clear(void)
 	XClearWindow(mg.dpy, mg.win);
 }
 
-void 
-mg_drawcircle(int x, int y, int r)
-{
-	XDrawArc(mg.dpy, mg.win, mg.gc, x - r, y - r, (unsigned int)r * 2, (unsigned int)r * 2, 0, 360 * 64);
-}
-
 void
-mg_drawline(int x1, int y1, int x2, int y2)
+mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y)
 {
-	XDrawLine(mg.dpy, mg.win, mg.gc, x1, y1, x2, y2);
-}
+	if (width == 0 || height == 0)
+		return;
 
-void
-mg_drawpixel(int x, int y)
-{
-	XDrawPoint(mg.dpy, mg.win, mg.gc, x, y);
-}
+	if (mg.depth >= 24) {
+		XImage *ximage;
+		size_t i = 0, j = 0, k = 0;
 
-void
-mg_drawrect(int x1, int y1, int x2, int y2)
-{
-	XDrawRectangle(mg.dpy, mg.win, mg.gc, MG__MIN(x1, x2), MG__MIN(y1, y2),
-			(unsigned int)abs(x2 - x1), (unsigned int)abs(y2 - y1));
-}
+		if (mg.pixmap_w != width || mg.pixmap_h != height) {
+			/* we need a new pixmap */
+			if (mg.pixmap_w != 0 && mg.pixmap_h != 0)
+				/* free the old one if it exists */
+				XFreePixmap(mg.dpy, mg.pixmap);
 
-void
-mg_drawtext(int x, int y, const char *text, int size)
-{
-	size_t i;
-	int points = 0;
-	int px, py; /* point x, point y */
-	int dx = 0; /* draw x */
-	size_t len = strlen(text);
-	if (size == 1) {
-		XPoint letter[64];
-		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8), 8, mg.depth);
-		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
-		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8), 8);
-		XSetForeground(mg.dpy, mg.gc, mg.color);
-
-		for (i = 0; i < len; ++i) {
-			for (py = 0; py < 8; ++py) {
-				for (px = 0; px < 8; ++px) {
-					if (text[i] >= 0x20 && text[i] <= 0x7e &&
-							(mg__font[text[i] - 0x20][py] & 1 << px)) {
-						letter[points].x = (short)(dx + px);
-						letter[points].y = (short)py;
-						++points;
-					}
-				}
-			}
-			dx += 8;
-			if (points)
-				XDrawPoints(mg.dpy, pixmap, mg.gc, letter, points, CoordModeOrigin);
-			points = 0;
+			mg.pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
+			mg.pixmap_w = width;
+			mg.pixmap_h = height;
 		}
 
-		XCopyArea(mg.dpy, pixmap, mg.win, mg.gc, 0, 0, (unsigned int)len * 8, 8, x, y);
-		XFreePixmap(mg.dpy, pixmap);
-	} else if (size > 1) {
-		XRectangle letter[64];
-		Pixmap pixmap = XCreatePixmap(mg.dpy, mg.win, (unsigned int)(len * 8 * (size_t)size),
-				(unsigned int)(8 * size), mg.depth);
-		XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
-		XFillRectangle(mg.dpy, pixmap, mg.gc, 0, 0, (unsigned int)(len * 8 * (size_t)size),
-				(unsigned int)(8 * size));
-		XSetForeground(mg.dpy, mg.gc, mg.color);
+		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height,
+				32, (int)(width * 4));
+		ximage->data = malloc(width * height * 4);
+		if (!ximage->data)
+			MG__ERROR(MG_OUT_OF_MEMORY)
 
-		for (i = 0; i < len; ++i) {
-			for (py = 0; py < 8; ++py) {
-				for (px = 0; px < 8; ++px) {
-					if (text[i] >= 0x20 && text[i] <= 0x7e &&
-							(mg__font[text[i] - 0x20][py] & 1 << px)) {
-						letter[points].x = (short)(dx + (px * size));
-						letter[points].y = (short)(py * size);
-						letter[points].width = (unsigned short)size;
-						letter[points].height = (unsigned short)size;
-						++points;
-					}
-				}
-			}
-			dx += 8 * size;
-			if (points)
-				XFillRectangles(mg.dpy, pixmap, mg.gc, letter, points);
-			points = 0;
+		for (; i < width * height; ++i) {
+			/* X seems to use BGRX for images, so convert our image to that */
+			ximage->data[k] = (char)(data[j + 2]);
+			ximage->data[k + 1] = (char)(data[j + 1]);
+			ximage->data[k + 2] = (char)(data[j]);
+			j += 3;
+			k += 4;
 		}
 
-		XCopyArea(mg.dpy, pixmap, mg.win, mg.gc, 0, 0, (unsigned int)(len * 8 * (size_t)size),
-				(unsigned int)(8 * size), x, y);
-		XFreePixmap(mg.dpy, pixmap);
+		XInitImage(ximage);
+		XFillRectangle(mg.dpy, mg.pixmap, mg.gc, 0, 0, width, height);
+		XPutImage(mg.dpy, mg.pixmap, mg.gc, ximage, 0, 0, 0, 0, width, height);
+		XCopyArea(mg.dpy, mg.pixmap, mg.win, mg.gc, 0, 0, width, height, x, y);
+		XDestroyImage(ximage);
 	}
-}
-
-void
-mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	XDrawLine(mg.dpy, mg.win, mg.gc, x1, y1, x2, y2);
-	XDrawLine(mg.dpy, mg.win, mg.gc, x2, y2, x3, y3);
-	XDrawLine(mg.dpy, mg.win, mg.gc, x3, y3, x1, y1);
-}
-
-void
-mg_fillcircle(int x, int y, int r)
-{
-	XFillArc(mg.dpy, mg.win, mg.gc, x - r, y - r, (unsigned int)r * 2, (unsigned int)r * 2, 0, 360 * 64);
-}
-
-void
-mg_fillrect(int x1, int y1, int x2, int y2)
-{
-	XFillRectangle(mg.dpy, mg.win, mg.gc, MG__MIN(x1, x2), MG__MIN(y1, y2),
-			(unsigned int)abs(x2 - x1), (unsigned int)abs(y2 - y1));
-}
-
-void
-mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	XPoint points[3];
-	points[0].x = (short)x1;
-	points[0].y = (short)y1;
-	points[1].x = (short)x2;
-	points[1].y = (short)y2;
-	points[2].x = (short)x3;
-	points[2].y = (short)y3;
-	XFillPolygon(mg.dpy, mg.win, mg.gc, points, 3, Convex, CoordModeOrigin);
+	MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
 }
 
 void
@@ -886,69 +617,6 @@ mg_flush(void)
 	XFlush(mg.dpy);
 }
 
-/* images */
-struct mg_image *
-mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
-{
-	if (width == 0 || height == 0)
-		return NULL;
-
-	if (mg.depth >= 24) {
-		struct mg_image *img = malloc(sizeof(struct mg_image));
-		size_t i = 0, j = 0, k = 0;
-
-		if (!img)
-			MG__ERROR(MG_OUT_OF_MEMORY)
-		img->pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
-		img->ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height,
-				32, (int)(width * 4));
-		img->ximage->data = malloc(width * height * 4);
-		if (!img->ximage->data)
-			MG__ERROR(MG_OUT_OF_MEMORY)
-
-		for (; i < width * height; ++i) {
-			img->ximage->data[k] = (char)(data[j + 2]);
-			img->ximage->data[k + 1] = (char)(data[j + 1]);
-			img->ximage->data[k + 2] = (char)(data[j]);
-			j += 3;
-			k += 4;
-		}
-
-		XInitImage(img->ximage);
-
-		img->width = width;
-		img->height = height;
-
-		return img;
-	}
-	MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
-}
-
-void
-mg_image_draw(struct mg_image *image, int x, int y)
-{
-	if (!image)
-		return;
-
-	XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
-	XFillRectangle(mg.dpy, image->pixmap, mg.gc, 0, 0, image->width, image->height);
-	XSetForeground(mg.dpy, mg.gc, mg.color);
-	XPutImage(mg.dpy, image->pixmap, mg.gc, image->ximage, 0, 0, 0, 0, image->width, image->height);
-	XCopyArea(mg.dpy, image->pixmap, mg.win, mg.gc, 0, 0, image->width, image->height, x, y);
-}
-
-void
-mg_image_free(struct mg_image *image)
-{
-	if (!image)
-		return;
-
-	XDestroyImage(image->ximage);
-	XFreePixmap(mg.dpy, image->pixmap);
-	free(image);
-}
-
-/* functions to set colors */
 void
 mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -975,33 +643,7 @@ mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 	}
 	XSetBackground(mg.dpy, mg.gc, mg.bgcolor);
 	XSetWindowBackground(mg.dpy, mg.win, mg.bgcolor);
-}
-
-void
-mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
-{
-	static int unfreed = 0;
-
-	if (unfreed) {
-		XFreeColors(mg.dpy, mg.colormap, &mg.color, 1, 0);
-		unfreed = 0;
-	}
-
-	if (r == 0 && g == 0 && b == 0) {
-		mg.color = mg.black;
-	} else if (r == 25 && g == 255 && b == 255) {
-		mg.color = mg.white;
-	} else {
-		XColor color;
-		color.red = r * 257;
-		color.green = g * 257;
-		color.blue = b * 257;
-
-		unfreed = 1;
-		XAllocColor(mg.dpy, mg.colormap, &color);
-		mg.color = color.pixel;
-	}
-	XSetForeground(mg.dpy, mg.gc, mg.color);
+	XSetForeground(mg.dpy, mg.gc, mg.bgcolor);
 }
 #endif /* defined(MG_BACKEND_X11) */
 
@@ -1045,12 +687,6 @@ mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
 /* macros */
 #define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
 #define MG__MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define MG__MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MG__PIXELSET(x, y) \
-	if ((x) >= 0 && (y) >= 0 && (x) < (int)mg.buf_width && (y) < (int)mg.buf_height) \
-		mg.draw_buf[(y) * (int)mg.buf_width + (x)] = mg.color
-#define MG__PIXELSET_NOBOUNDSCHECK(x, y) \
-	mg.draw_buf[(y) * (int)mg.buf_width + (x)] = mg.color
 
 /* types */
 enum mg__pointer_event_mask {
@@ -1102,7 +738,7 @@ struct mg__state {
 
 	int closed;
 	uint32_t *draw_buf;
-	uint32_t bgcolor, color;
+	uint32_t bgcolor;
 	size_t buf_width, buf_height, buf_stride, buf_size;
 
 	/* highest to lowest priority */
@@ -1125,105 +761,6 @@ int mg_height;
 enum mg_error mg_errno;
 
 /* internal utility functions */
-static int
-mg__clamp(int val, int min, int max)
-{
-	if (val < min)
-		return min;
-	else if (val > max)
-		return max;
-	else
-		return val;
-}
-
-static void
-mg__fillflatsidetriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	/* points 2 and 3 must be on the same horizontal line (y2 == y3) */
-	int tmp1_x = x1, tmp1_y = y1;
-	int tmp2_x = x1, tmp2_y = y1;
-
-	int changed1 = 0, changed2 = 0;
-
-	int dx1 = abs(x2 - x1);
-	int dy1 = abs(y2 - y1);
-
-	int dx2 = abs(x3 - x1);
-	int dy2 = abs(y3 - y1);
-
-	int sx1 = (x2 - x1 > 0) ? 1 : -1;
-	int sx2 = (x3 - x1 > 0) ? 1 : -1;
-
-	int sy1 = (y2 - y1 > 0) ? 1 : -1;
-	int sy2 = (y3 - y1 > 0) ? 1 : -1;
-
-	int e1, e2;
-
-	int i, tmp;
-	int lowx, highx;
-
-	if (dy1 > dx1) {
-		tmp = dx1;
-		dx1 = dy1;
-		dy1 = tmp;
-		changed1 = 1;
-	}
-
-	if (dy2 > dx2) {
-		tmp = dx2;
-		dx2 = dy2;
-		dy2 = tmp;
-		changed2 = 1;
-	}
-
-	e1 = 2 * dy1 - dx1;
-	e2 = 2 * dy2 - dx2;
-
-	for (i = 0; i <= dx1; ++i) {
-		/* mg_drawline(tmp1_x, tmp1_y, tmp2_x, tmp2_y); */
-
-		if (tmp1_y >= 0 && tmp1_y < (int)mg.buf_height) {
-			/* assuming tmp1_y == tmp2_y */
-			lowx = mg__clamp(MG__MIN(tmp1_x, tmp2_x), 0, (int)mg.buf_width - 1);
-			highx = mg__clamp(MG__MAX(tmp1_x, tmp2_x), 0, (int)mg.buf_width - 1);
-			for (; lowx <= highx; ++lowx)
-				MG__PIXELSET_NOBOUNDSCHECK(lowx, tmp1_y);
-		}
-
-		while (e1 >= 0) {
-			if (changed1)
-				tmp1_x += sx1;
-			else
-				tmp1_y += sy1;
-			e1 = e1 - 2 * dx1;
-		}
-
-		if (changed1)
-			tmp1_y += sy1;
-		else
-			tmp1_x += sx1;
-
-		e1 = e1 + 2 * dy1;
-
-		while (tmp2_y != tmp1_y) {
-			while (e2 >= 0) {
-				if (changed2)
-					tmp2_x += sx2;
-				else
-					tmp2_y += sy2;
-				e2 = e2 - 2 * dx2;
-			}
-
-			if (changed2)
-				tmp2_y += sy2;
-			else
-				tmp2_x += sx2;
-
-			e2 = e2 + 2 * dy2;
-		}
-	}
-}
-
 static void
 mg__frametrimcpy(uint32_t *dst, const uint32_t *src, size_t oldwidth, size_t newwidth,
 		size_t oldstride, size_t newstride, size_t oldheight, size_t newheight)
@@ -1280,35 +817,6 @@ mg__handle_wl_event(struct mg_event *event)
 		return 1;
 	}
 	return 0;
-}
-
-static void
-mg__sort_ascending_by_y(int x1, int y1, int x2, int y2, int x3, int y3,
-		int *nx1, int *ny1, int *nx2, int *ny2, int *nx3, int *ny3)
-{
-#define MG__SWAP(x, y) tmp = x; x = y; y = tmp;
-	int tmp;
-	if (y1 > y3) {
-		MG__SWAP(y1, y3);
-		MG__SWAP(x1, x3);
-	}
-	if (y1 > y2) {
-		MG__SWAP(y1, y2);
-		MG__SWAP(x1, x2);
-	}
-	if (y2 > y3) {
-		MG__SWAP(y2, y3);
-		MG__SWAP(x2, x3);
-	}
-#undef MG__SWAP
-
-	/* remember that lower Y value = higher */
-	*nx1 = x3;
-	*ny1 = y3;
-	*nx2 = x2;
-	*ny2 = y2;
-	*nx3 = x1;
-	*ny3 = y1;
 }
 
 /* shared memory stuff */
@@ -1823,7 +1331,6 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	/* remember we're using XRGB */
 	mg.bgcolor = 0x00FFFFFF;
-	mg.color = 0x00000000;
 
 	mg_width = w;
 	mg_height = h;
@@ -1928,161 +1435,23 @@ mg_clear(void)
 }
 
 void
-mg_drawcircle(int x, int y, int r)
+mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y)
 {
-	int dx = -r, dy = 0, err = 2 - 2 * r;
-	do {
-		MG__PIXELSET(x - dx, y + dy);
-		MG__PIXELSET(x - dy, y - dx);
-		MG__PIXELSET(x + dx, y - dy);
-		MG__PIXELSET(x + dy, y + dx);
-
-		r = err;
-		if (r <= dy)
-			err += ++dy * 2 + 1;
-		if (r > dx || err > dy)
-			err += ++dx * 2 + 1;
-	} while (dx < 0);
-}
-
-void
-mg_drawline(int x1, int y1, int x2, int y2)
-{
-	x1 = mg__clamp(x1, 0, (int)mg.buf_width - 1);
-	y1 = mg__clamp(y1, 0, (int)mg.buf_height - 1);
-	x2 = mg__clamp(x2, 0, (int)mg.buf_width - 1);
-	y2 = mg__clamp(y2, 0, (int)mg.buf_height - 1);
-	if (x1 == x2) {
-		int lowy = MG__MIN(y1, y2);
-		int highy = MG__MAX(y1, y2);
-		for (; lowy <= highy; ++lowy)
-			MG__PIXELSET_NOBOUNDSCHECK(x1, lowy);
-	} else if (y1 == y2) {
-		int lowx = MG__MIN(x1, x2);
-		int highx = MG__MAX(x1, x2);
-		for (; lowx <= highx; ++lowx)
-			MG__PIXELSET_NOBOUNDSCHECK(lowx, y1);
-	} else {
-		int dx = abs(x2 - x1), sx = (x1 < x2) ? 1 : -1;
-		int dy = -abs(y2 - y1), sy = (y1 < y2) ? 1 : -1;
-		int err = dx + dy, e2;
-
-		for (;;) {
-			MG__PIXELSET_NOBOUNDSCHECK(x1, y1);
-			if (x1 == x2 && y1 == y2)
-				break;
-			e2 = err * 2;
-			if (e2 >= dy) {
-				err += dy;
-				x1 += sx;
-			}
-			if (e2 <= dx) {
-				err += dx;
-				y1 += sy;
-			}
-		}
-	}
-}
-
-void
-mg_drawpixel(int x, int y)
-{
-	MG__PIXELSET(x, y);
-}
-
-void
-mg_drawrect(int x1, int y1, int x2, int y2)
-{
-	mg_drawline(x1, y1, x2, y1); /* top */
-	mg_drawline(x2, y1, x2, y2); /* right */
-	mg_drawline(x1, y2, x2, y2); /* bottom */
-	mg_drawline(x1, y1, x1, y2); /* left */
-}
-
-void
-mg_drawtext(int x, int y, const char *text, int size)
-{
-	if (size < 1) {
-		return;
-	} else {
-		size_t i;
-		int px, py; /* point x, point y */
-		int dx = x; /* draw x */
-
-		for (i = 0; i < strlen(text); ++i) {
-			for (py = 0; py < 8; ++py) {
-				for (px = 0; px < 8; ++px) {
-					if (text[i] >= 0x20 && text[i] <= 0x7e &&
-							(mg__font[text[i] - 0x20][py] & 1 << px)) {
-						int tmpx = dx + (px * size);
-						int tmpy = y + (py * size);
-						if (size > 1)
-							mg_fillrect(tmpx, tmpy, tmpx + size - 1, tmpy + size - 1);
-						else
-							MG__PIXELSET(tmpx, tmpy);
-					}
+	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
+		size_t i = 0; /* position in image buffer */
+		int dx, dy = 0; /* x offset / y offset to draw at */
+		for (; dy < (int)height; ++dy) {
+			for (dx = 0; dx < (int)width; ++dx) {
+				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
+						(dy + y) < (int)mg.buf_height) {
+					/* remember we're using XRGB */
+					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = (uint32_t)
+						((data[i] << 16) | (data[i + 1] << 8) |
+						 data[i + 2]);
 				}
+				i += 3;
 			}
-			dx += 8 * size;
 		}
-	}
-}
-
-void
-mg_drawtriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	mg_drawline(x1, y1, x2, y2);
-	mg_drawline(x2, y2, x3, y3);
-	mg_drawline(x3, y3, x1, y1);
-}
-
-void
-mg_fillcircle(int x, int y, int r)
-{
-	/* TODO: this is really bad.... */
-	int dx, dy = -r;
-	for (; dy <= r; ++dy)
-		for (dx = -r; dx <= r; ++dx)
-			if (dx * dx + dy * dy < r * r + r)
-				MG__PIXELSET(dx + x, dy + y);
-}
-
-void
-mg_fillrect(int x1, int y1, int x2, int y2)
-{
-	int x;
-	int lowx = mg__clamp(MG__MIN(x1, x2), 0, (int)mg.buf_width - 1);
-	int highx = mg__clamp(MG__MAX(x1, x2), 0, (int)mg.buf_width - 1);
-	int lowy = mg__clamp(MG__MIN(y1, y2), 0, (int)mg.buf_height - 1);
-	int highy = mg__clamp(MG__MAX(y1, y2), 0, (int)mg.buf_height - 1);
-
-	for (; lowy <= highy; ++lowy)
-		for (x = lowx; x <= highx; ++x)
-			MG__PIXELSET_NOBOUNDSCHECK(x, lowy);
-}
-
-void
-mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	/*
-	 * see http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
-	 * for the algorithm used here
-	 */
-	int nx1, ny1, nx2, ny2, nx3, ny3;
-	mg__sort_ascending_by_y(x1, y1, x2, y2, x3, y3, &nx1, &ny1, &nx2, &ny2, &nx3, &ny3);
-	/* now we can assume that ny1 <= ny2 <= ny3 */
-
-	if (ny2 == ny3) {
-		/* bottom-flat triangle */
-		mg__fillflatsidetriangle(nx1, ny1, nx2, ny2, nx3, ny3);
-	} else if (ny1 == ny2) {
-		/* top-flat triangle */
-		mg__fillflatsidetriangle(nx3, ny3, nx1, ny1, nx2, ny2);
-	} else {
-		/* split triangle into top-flat && bottom-flat */
-		int tmp = (int)((float)nx1 + ((float)(ny2 - ny1) / (float)(ny3 - ny1)) * (float)(nx3 - nx1));
-		mg__fillflatsidetriangle(nx1, ny1, nx2, ny2, tmp, ny2);
-		mg__fillflatsidetriangle(nx3, ny3, nx2, ny2, tmp, ny2);
 	}
 }
 
@@ -2098,75 +1467,12 @@ mg_flush(void)
 	}
 }
 
-/* images */
-struct mg_image *
-mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
-{
-	if (width == 0 || height == 0) {
-		return;
-	} else {
-		struct mg_image *img = malloc(sizeof(struct mg_image));
-		if (!img)
-			MG__ERROR(MG_OUT_OF_MEMORY)
-
-		img->data = malloc(width * height * 3);
-		if (!img->data)
-			MG__ERROR(MG_OUT_OF_MEMORY)
-
-		memcpy(img->data, data, width * height * 3);
-		img->width = width;
-		img->height = height;
-		return img;
-	}
-}
-
-void
-mg_image_draw(struct mg_image *image, int x, int y)
-{
-	if (!image)
-		return;
-
-	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
-		size_t i = 0; /* position in image buffer */
-		int dx, dy = 0; /* x offset / y offset to draw at */
-		for (; dy < (int)image->height; ++dy) {
-			for (dx = 0; dx < (int)image->width; ++dx) {
-				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
-						(dy + y) < (int)mg.buf_height) {
-					/* remember we're using XRGB */
-					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = (uint32_t)
-						((image->data[i] << 16) | (image->data[i + 1] << 8) |
-						 image->data[i + 2]);
-				}
-				i += 3;
-			}
-		}
-	}
-}
-
-void
-mg_image_free(struct mg_image *image)
-{
-	if (!image)
-		return;
-
-	free(image->data);
-	free(image);
-}
-
 /* functions to set colors */
 void
 mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 {
 	/* remember we're using XRGB */
 	mg.bgcolor = (uint32_t)((r << 16) | (g << 8) | b);
-}
-
-void
-mg_setdrawcolor(uint8_t r, uint8_t g, uint8_t b)
-{
-	/* remember we're using XRGB */
-	mg.color = (uint32_t)((r << 16) | (g << 8) | b);
 }
 #endif /* defined(MG_BACKEND_WAYLAND) */
 
