@@ -639,7 +639,7 @@ mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 	}
 
 	if (r == 0 && g == 0 && b == 0) {
-		mg.bgcolor = mg.black;
+		mg.bgcolor = BlackPixel(mg.dpy, mg.screen);
 	} else if (r == 25 && g == 255 && b == 255) {
 		mg.bgcolor = mg.white;
 	} else {
