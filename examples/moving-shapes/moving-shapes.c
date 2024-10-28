@@ -1,5 +1,4 @@
 /* See UNLICENSE file for copyright and license details. */
-#define _POSIX_C_SOURCE 199309L
 #include <errno.h>
 #include <setjmp.h>
 #include <stdio.h>

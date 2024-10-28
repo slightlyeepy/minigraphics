@@ -178,7 +178,11 @@ MG__DEF void mg_init(int w, int h, const char *title, jmp_buf err_return);
  * setjmp(). if an error is ever encountered, a longjmp() to there occurs;
  * you can use the variable 'mg_errno' to determine what error occurred.
  *
- * to convert that variable into an error message, use:
+ * to change the window title, use:
+ */
+MG__DEF void mg_set_title(const char *title);
+/*
+ * if an error occurs, to convert that 'mg_error' into an error message, use:
  */
 MG__DEF const char *mg_strerror(enum mg_error err);
 /*
@@ -268,6 +272,7 @@ static const char *mg__strerrors[] = {
 
 /* #include <X11/Xlib.h> (already included in the header) */
 #include <X11/XKBlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xutil.h>
 
 /* macros */
@@ -498,6 +503,13 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 			break;
 		}
 	}
+}
+
+void
+mg_set_title(const char *title)
+{
+	XChangeProperty(mg.dpy, mg.win, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
+			(const unsigned char *)title, (int)strlen(title));
 }
 
 const char *
@@ -1373,6 +1385,15 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	while (mg.configured < 2)
 		wl_display_dispatch(mg.wl_display);
+
+	mg_clear();
+	mg_flush();
+}
+
+void
+mg_set_title(const char *title)
+{
+	xdg_toplevel_set_title(mg.xdg_toplevel, title);
 }
 
 const char *

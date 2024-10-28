@@ -5,7 +5,7 @@ SRC     = events.c
 HEADERS = ../../minigraphics.h
 
 WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wconversion -Wstrict-prototypes -Wdeprecated
-CFLAGS  = -Ofast -lxkbcommon $(WFLAGS)
+CFLAGS  = -D_POSIX_C_SOURCE=200112L -Ofast -lxkbcommon $(WFLAGS)
 
 X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
 WL_CFLAGS   = -lrt -lwayland-client -DMG_BACKEND_WAYLAND
