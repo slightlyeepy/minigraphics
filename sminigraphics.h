@@ -508,8 +508,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 void
 mg_set_title(const char *title)
 {
-	XChangeProperty(mg.dpy, mg.win, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
-			(const unsigned char *)title, (int)strlen(title));
+	XStoreName(mg.dpy, mg.win, title);
 }
 
 const char *
