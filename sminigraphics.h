@@ -598,7 +598,8 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 			mg.pixmap_h = height;
 		}
 
-		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height, 32, (int)(width * 4));
+		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap,
+				0, NULL, width, height, 32, (int)(width * 4));
 		ximage->data = malloc(width * height * 4);
 		if (!ximage->data)
 			MG__ERROR(MG_OUT_OF_MEMORY)
@@ -1460,7 +1461,8 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 		int dx, dy = 0; /* x offset / y offset to draw at */
 		for (; dy < (int)height; ++dy) {
 			for (dx = 0; dx < (int)width; ++dx) {
-				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width && (dy + y) < (int)mg.buf_height)
+				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
+						(dy + y) < (int)mg.buf_height)
 					/* remember we're using XRGB */
 					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = data[i] >> 8;
 				++i;
