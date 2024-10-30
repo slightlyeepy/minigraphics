@@ -37,7 +37,7 @@ die(const char *fmt, ...)
 }
 
 static void
-read_farbfeld(FILE *f, uint8_t **data, uint32_t *width, uint32_t *height)
+read_farbfeld(FILE *f, uint32_t **data, uint32_t *width, uint32_t *height)
 {
 	uint32_t header[4], w, h;
 	uint16_t rgba[4];
@@ -56,7 +56,7 @@ read_farbfeld(FILE *f, uint8_t **data, uint32_t *width, uint32_t *height)
 	w = ntohl(header[2]);
 	h = ntohl(header[3]);
 
-	*data = malloc(w * h * 3);
+	*data = malloc(w * h * sizeof(uint32_t));
 	if (!(*data)) {
 		FCLOSE_IF_NOT_STDIN(f);
 		die("error: out of memory");
@@ -69,10 +69,9 @@ read_farbfeld(FILE *f, uint8_t **data, uint32_t *width, uint32_t *height)
 		}
 
 		/* note: this isn't really proper color reduction... */
-		(*data)[j]     = (uint8_t)ceilf((float)(ntohs(rgba[0])) / 257);
-		(*data)[j + 1] = (uint8_t)ceilf((float)(ntohs(rgba[1])) / 257);
-		(*data)[j + 2] = (uint8_t)ceilf((float)(ntohs(rgba[2])) / 257);
-		j += 3;
+		(*data)[j++] = ((uint8_t)ceilf((float)(ntohs(rgba[0])) / 257) << 24) |
+			((uint8_t)ceilf((float)(ntohs(rgba[1])) / 257) << 16) |
+			((uint8_t)ceilf((float)(ntohs(rgba[2])) / 257) << 8);
 	}
 	*width = w;
 	*height = h;
@@ -85,7 +84,7 @@ main(int argc, char *argv[])
 	FILE *image_source;
 	struct mg_event event;
 	struct mg_image *image;
-	uint8_t *img_data;
+	uint32_t *img_data;
 	uint32_t img_width, img_height;
 	jmp_buf env;
 

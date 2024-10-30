@@ -93,7 +93,7 @@ struct mg_image {
 };
 #elif defined(MG_BACKEND_WAYLAND)
 struct mg_image {
-	uint8_t *data;
+	uint32_t *data;
 	uint32_t width, height;
 };
 #endif /* defined(MG_BACKEND_X11) || defined(MG_BACKEND_WAYLAND) */
@@ -277,8 +277,7 @@ MG__DEF void mg_fillrect(int x1, int y1, int x2, int y2);
 
 /*
  * draw a filled-in triangle with the current drawing color,
- * with its vertice
- * return img;s being at the points (x1, y1), (x2, y2), and (x3, y3).
+ * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
  */
 MG__DEF void mg_filltriangle(int x1, int y1, int x2, int y2, int x3, int y3);
 
@@ -292,7 +291,7 @@ MG__DEF void mg_flush(void);
  * the following functions can be used to draw images:
  *
  * create an image from the memory buffer 'data', which should contain valid
- * RGB data, with each pixel being represented by three values.
+ * RGBX data, with each pixel being represented by one value.
  * 'width' and 'height' specify the image's width and height in pixels.
  *
  * if 'width' does not match image's width or 'height' is larger than
@@ -305,7 +304,7 @@ MG__DEF void mg_flush(void);
  * if 'data' is a dynamically allocated object, it can be freed after the
  * call to mg_image_create().
  */
-MG__DEF struct mg_image *mg_image_create(uint8_t *data, uint32_t width, uint32_t height);
+MG__DEF struct mg_image *mg_image_create(uint32_t *data, uint32_t width, uint32_t height);
 
 /*
  * draw an image with the location of the top-left corner being (x, y).
@@ -899,30 +898,29 @@ mg_flush(void)
 
 /* images */
 struct mg_image *
-mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
+mg_image_create(uint32_t *data, uint32_t width, uint32_t height)
 {
 	if (width == 0 || height == 0)
 		return NULL;
 
 	if (mg.depth >= 24) {
 		struct mg_image *img = malloc(sizeof(struct mg_image));
-		size_t i = 0, j = 0, k = 0;
+		size_t i = 0, j = 0;
 
 		if (!img)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 		img->pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
-		img->ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height,
-				32, (int)(width * 4));
+		img->ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height, 32, (int)(width * 4));
 		img->ximage->data = malloc(width * height * 4);
 		if (!img->ximage->data)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 
 		for (; i < width * height; ++i) {
-			img->ximage->data[k] = (char)(data[j + 2]);
-			img->ximage->data[k + 1] = (char)(data[j + 1]);
-			img->ximage->data[k + 2] = (char)(data[j]);
-			j += 3;
-			k += 4;
+			/* X seems to use BGRX for images, so convert our image to that */
+			img->ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
+			img->ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+			img->ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+			j += 4;
 		}
 
 		XInitImage(img->ximage);
@@ -1833,7 +1831,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.closed = 0;
 
 	/* remember we're using XRGB */
-	mg.bgcolor = 0x00FFFFFF;
+	mg.bgcolor = 0x00ffffff;
 	mg.color = 0x00000000;
 
 	mg_width = w;
@@ -2120,7 +2118,7 @@ mg_flush(void)
 
 /* images */
 struct mg_image *
-mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
+mg_image_create(uint32_t *data, uint32_t width, uint32_t height)
 {
 	if (width == 0 || height == 0) {
 		return NULL;
@@ -2129,11 +2127,11 @@ mg_image_create(uint8_t *data, uint32_t width, uint32_t height)
 		if (!img)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 
-		img->data = malloc(width * height * 3);
+		img->data = malloc(width * height * sizeof(uint32_t));
 		if (!img->data)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 
-		memcpy(img->data, data, width * height * 3);
+		memcpy(img->data, data, width * height * sizeof(uint32_t));
 		img->width = width;
 		img->height = height;
 		return img;
@@ -2151,14 +2149,10 @@ mg_image_draw(struct mg_image *image, int x, int y)
 		int dx, dy = 0; /* x offset / y offset to draw at */
 		for (; dy < (int)image->height; ++dy) {
 			for (dx = 0; dx < (int)image->width; ++dx) {
-				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
-						(dy + y) < (int)mg.buf_height) {
+				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width && (dy + y) < (int)mg.buf_height)
 					/* remember we're using XRGB */
-					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = (uint32_t)
-						((image->data[i] << 16) | (image->data[i + 1] << 8) |
-						 image->data[i + 2]);
-				}
-				i += 3;
+					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = image->data[i] >> 8;
+				++i;
 			}
 		}
 	}

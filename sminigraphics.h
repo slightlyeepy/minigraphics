@@ -216,7 +216,7 @@ MG__DEF void mg_clear(void);
 
 /*
  * draw the contents of the memory buffer 'data', which should contain valid
- * RGB data, with each pixel being represented by three values.
+ * RGBX data, with each pixel being represented by one value.
  * 'width' and 'height' specify the image's width and height in pixels.
  *
  * if 'width' does not match image's width or 'height' is larger than
@@ -226,7 +226,7 @@ MG__DEF void mg_clear(void);
  *
  * the top-left corner of the drawn image will be at (x, y).
  */
-MG__DEF void mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y);
+MG__DEF void mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y);
 
 /*
  * commit all changes to the window -- calling this is necessary to be
@@ -578,14 +578,14 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y)
+mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 {
 	if (width == 0 || height == 0)
 		return;
 
 	if (mg.depth >= 24) {
 		XImage *ximage;
-		size_t i = 0, j = 0, k = 0;
+		size_t i = 0, j = 0;
 
 		if (mg.pixmap_w != width || mg.pixmap_h != height) {
 			/* we need a new pixmap */
@@ -598,19 +598,17 @@ mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y)
 			mg.pixmap_h = height;
 		}
 
-		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height,
-				32, (int)(width * 4));
+		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap, 0, NULL, width, height, 32, (int)(width * 4));
 		ximage->data = malloc(width * height * 4);
 		if (!ximage->data)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 
 		for (; i < width * height; ++i) {
 			/* X seems to use BGRX for images, so convert our image to that */
-			ximage->data[k] = (char)(data[j + 2]);
-			ximage->data[k + 1] = (char)(data[j + 1]);
-			ximage->data[k + 2] = (char)(data[j]);
-			j += 3;
-			k += 4;
+			img->ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
+			img->ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+			img->ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+			j += 4;
 		}
 
 		XInitImage(ximage);
@@ -1341,7 +1339,7 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.closed = 0;
 
 	/* remember we're using XRGB */
-	mg.bgcolor = 0x00FFFFFF;
+	mg.bgcolor = 0x00ffffff;
 
 	mg_width = w;
 	mg_height = h;
@@ -1455,21 +1453,17 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint8_t *data, uint32_t width, uint32_t height, int x, int y)
+mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 {
 	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
 		size_t i = 0; /* position in image buffer */
 		int dx, dy = 0; /* x offset / y offset to draw at */
 		for (; dy < (int)height; ++dy) {
 			for (dx = 0; dx < (int)width; ++dx) {
-				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
-						(dy + y) < (int)mg.buf_height) {
+				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width && (dy + y) < (int)mg.buf_height)
 					/* remember we're using XRGB */
-					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = (uint32_t)
-						((data[i] << 16) | (data[i + 1] << 8) |
-						 data[i + 2]);
-				}
-				i += 3;
+					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = data[i] >> 8;
+				++i;
 			}
 		}
 	}
