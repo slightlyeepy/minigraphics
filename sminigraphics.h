@@ -606,9 +606,9 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 
 		for (; i < width * height; ++i) {
 			/* X seems to use BGRX for images, so convert our image to that */
-			img->ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
-			img->ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
-			img->ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+			ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
+			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+			ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
 			j += 4;
 		}
 
