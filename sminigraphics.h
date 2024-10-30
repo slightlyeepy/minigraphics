@@ -101,7 +101,6 @@ extern int mg_height;
 enum mg_error {
 	MG_INIT_FAILED,
 	MG_OUT_OF_MEMORY,
-	MG_UNSUPPORTED_COLOR_DEPTH,
 	MG_UNSUPPORTED_KEYMAP
 };
 /*
@@ -449,7 +448,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	*mg.err_return = *err_return;
 
 	/* open display */
-	if (!(mg.dpy = XOpenDisplay(NULL)))
+	mg.dpy = XOpenDisplay(NULL);
+	if (!mg.dpy)
 		MG__ERROR(MG_INIT_FAILED)
 
 	/* set detectable autorepeat */
@@ -580,45 +580,42 @@ mg_clear(void)
 void
 mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 {
+	XImage *ximage;
+	size_t i = 0, j = 0;
+
 	if (width == 0 || height == 0)
 		return;
 
-	if (mg.depth >= 24) {
-		XImage *ximage;
-		size_t i = 0, j = 0;
+	if (mg.pixmap_w != width || mg.pixmap_h != height) {
+		/* we need a new pixmap */
+		if (mg.pixmap_w != 0 && mg.pixmap_h != 0)
+			/* free the old one if it exists */
+			XFreePixmap(mg.dpy, mg.pixmap);
 
-		if (mg.pixmap_w != width || mg.pixmap_h != height) {
-			/* we need a new pixmap */
-			if (mg.pixmap_w != 0 && mg.pixmap_h != 0)
-				/* free the old one if it exists */
-				XFreePixmap(mg.dpy, mg.pixmap);
-
-			mg.pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
-			mg.pixmap_w = width;
-			mg.pixmap_h = height;
-		}
-
-		ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap,
-				0, NULL, width, height, 32, (int)(width * 4));
-		ximage->data = malloc(width * height * 4);
-		if (!ximage->data)
-			MG__ERROR(MG_OUT_OF_MEMORY)
-
-		for (; i < width * height; ++i) {
-			/* X seems to use BGRX for images, so convert our image to that */
-			ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
-			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
-			ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
-			j += 4;
-		}
-
-		XInitImage(ximage);
-		XFillRectangle(mg.dpy, mg.pixmap, mg.gc, 0, 0, width, height);
-		XPutImage(mg.dpy, mg.pixmap, mg.gc, ximage, 0, 0, 0, 0, width, height);
-		XCopyArea(mg.dpy, mg.pixmap, mg.win, mg.gc, 0, 0, width, height, x, y);
-		XDestroyImage(ximage);
+		mg.pixmap = XCreatePixmap(mg.dpy, mg.win, width, height, mg.depth);
+		mg.pixmap_w = width;
+		mg.pixmap_h = height;
 	}
-	MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
+
+	ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap,
+			0, NULL, width, height, 32, (int)(width * 4));
+	ximage->data = malloc(width * height * 4);
+	if (!ximage->data)
+		MG__ERROR(MG_OUT_OF_MEMORY)
+
+	for (; i < width * height; ++i) {
+		/* X seems to use BGRX for images, so convert our image to that */
+		ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
+		ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+		ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+		j += 4;
+	}
+
+	XInitImage(ximage);
+	XFillRectangle(mg.dpy, mg.pixmap, mg.gc, 0, 0, width, height);
+	XPutImage(mg.dpy, mg.pixmap, mg.gc, ximage, 0, 0, 0, 0, width, height);
+	XCopyArea(mg.dpy, mg.pixmap, mg.win, mg.gc, 0, 0, width, height, x, y);
+	XDestroyImage(ximage);
 }
 
 void
@@ -1044,7 +1041,8 @@ mg__wl_keyboard_keymap(void *data, MG_UNUSED struct wl_keyboard *wl_keyboard, ui
 	if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1)
 		MG__ERROR(MG_UNSUPPORTED_KEYMAP)
 
-	if ((map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED)
+	map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+	if (map_shm == MAP_FAILED)
 		MG__ERROR(MG_OUT_OF_MEMORY)
 
 	/* configure the keymap */
@@ -1200,7 +1198,8 @@ mg__xdg_toplevel_configure(void *data, MG_UNUSED struct xdg_toplevel *xdg_toplev
 		stride = (size_t)mg_width * 4;
 		size = stride * (size_t)mg_height;
 
-		if (!(new_draw_buf = calloc(size, 1)))
+		new_draw_buf = calloc(size, 1);
+		if (!new_draw_buf)
 			MG__ERROR(MG_OUT_OF_MEMORY)
 		mg__frametrimcpy(new_draw_buf, mg_state->draw_buf,
 			mg_state->buf_width, (size_t)mg_width,
@@ -1351,7 +1350,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	*mg.err_return = *err_return;
 
-	if (!(mg.draw_buf = calloc(mg.buf_size, 1)))
+	mg.draw_buf = calloc(mg.buf_size, 1);
+	if (!mg.draw_buf)
 		MG__ERROR(MG_OUT_OF_MEMORY)
 
 	mg.pending_quit = 0;
@@ -1363,7 +1363,8 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.pending_mouse_motion_x = -1;
 	mg.pending_mouse_motion_y = -1;
 
-	if (!(mg.wl_display = wl_display_connect(NULL)))
+	mg.wl_display = wl_display_connect(NULL);
+	if (!mg.wl_display)
 		MG__ERROR(MG_INIT_FAILED)
 
 	mg.wl_registry = wl_display_get_registry(mg.wl_display);
