@@ -101,6 +101,7 @@ extern int mg_height;
 enum mg_error {
 	MG_INIT_FAILED,
 	MG_OUT_OF_MEMORY,
+	MG_UNSUPPORTED_COLOR_DEPTH,
 	MG_UNSUPPORTED_KEYMAP
 };
 /*
@@ -585,6 +586,9 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 
 	if (width == 0 || height == 0)
 		return;
+
+	if (mg.depth < 24)
+		MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
 
 	if (mg.pixmap_w != width || mg.pixmap_h != height) {
 		/* we need a new pixmap */

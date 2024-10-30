@@ -113,6 +113,7 @@ extern int mg_height;
 enum mg_error {
 	MG_INIT_FAILED,
 	MG_OUT_OF_MEMORY,
+	MG_UNSUPPORTED_COLOR_DEPTH,
 	MG_UNSUPPORTED_KEYMAP
 };
 /*
@@ -905,6 +906,9 @@ mg_image_create(uint32_t *data, uint32_t width, uint32_t height)
 
 	if (width == 0 || height == 0)
 		return NULL;
+
+	if (mg.depth < 24)
+		MG__ERROR(MG_UNSUPPORTED_COLOR_DEPTH)
 
 	img = malloc(sizeof(struct mg_image));
 	if (!img)
