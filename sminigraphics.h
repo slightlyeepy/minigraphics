@@ -134,6 +134,12 @@ enum mg_mouse_btn {
 	MG_MOUSE_SIDE,
 	MG_MOUSE_EXTRA
 };
+/* available pixel formats for images are: */
+enum mg_pixel_format {
+	MG_PIXEL_FORMAT_RGBX,
+	MG_PIXEL_FORMAT_BGRX,
+	MG_PIXEL_FORMAT_XRGB
+};
 /*
  * when an event is recieved (see below on how they are recieved), it
  * is stored in a structure with the following layout:
@@ -216,7 +222,9 @@ MG__DEF void mg_clear(void);
 
 /*
  * draw the contents of the memory buffer 'data', which should contain valid
- * RGBX data, with each pixel being represented by one value.
+ * data with each pixel being represented by one value. the pixel format is
+ * determined by 'pixel_format'.
+ *
  * 'width' and 'height' specify the image's width and height in pixels.
  *
  * if 'width' does not match image's width or 'height' is larger than
@@ -226,7 +234,8 @@ MG__DEF void mg_clear(void);
  *
  * the top-left corner of the drawn image will be at (x, y).
  */
-MG__DEF void mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y);
+MG__DEF void mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+		enum mg_pixel_format pixel_format, int x, int y);
 
 /*
  * commit all changes to the window -- calling this is necessary to be
@@ -579,7 +588,8 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
+mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+		enum mg_pixel_format pixel_format, int x, int y)
 {
 	XImage *ximage;
 	size_t i = 0, j = 0;
@@ -609,9 +619,19 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 
 	for (; i < width * height; ++i) {
 		/* X seems to use BGRX for images, so convert our image to that */
-		ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
-		ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
-		ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+		if (pixel_format == MG_PIXEL_FORMAT_RGBX) {
+			ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
+			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+			ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
+		} else if (pixel_format == MG_PIXEL_FORMAT_BGRX) {
+			ximage->data[j] =     (char)((data[i] & 0xff000000) >> 8);
+			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
+			ximage->data[j + 2] = (char)((data[i] & 0x0000ff00) >> 24);
+		} else if (pixel_format == MG_PIXEL_FORMAT_XRGB) {
+			ximage->data[j] =     (char)(data[i] & 0x000000ff);
+			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 8);
+			ximage->data[j + 2] = (char)((data[i] & 0x00ff0000) >> 16);
+		}
 		j += 4;
 	}
 
@@ -837,9 +857,10 @@ mg__randname(char *buf)
 	/* generate a (pretty bad) random filename. */
 	struct timespec ts;
 	long r;
+	int i = 0;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	r = ts.tv_nsec;
-	for (int i = 0; i < 6; ++i) {
+	for (; i < 6; ++i) {
 		buf[i] = (char)('A'+(r&15)+(r&16)*2);
 		r >>= 5;
 	}
@@ -1459,7 +1480,8 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
+mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+		enum mg_pixel_format pixel_format, int x, int y)
 {
 	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
 		size_t i = 0; /* position in image buffer */
@@ -1469,7 +1491,17 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height, int x, int y)
 				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
 						(dy + y) < (int)mg.buf_height)
 					/* remember we're using XRGB */
-					mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] = data[i] >> 8;
+					if (pixel_format == MG_PIXEL_FORMAT_RGBX)
+						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
+							data[i] >> 8;
+					else if (pixel_format == MG_PIXEL_FORMAT_BGRX)
+						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
+							((data[i] & 0xff000000) >> 24) |
+							((data[i] & 0x00ff0000) >> 8) |
+							((data[i] & 0x0000ff00) << 8);
+					else if (pixel_format == MG_PIXEL_FORMAT_XRGB)
+						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
+							data[i];
 				++i;
 			}
 		}

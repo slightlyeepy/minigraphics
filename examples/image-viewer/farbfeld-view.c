@@ -114,7 +114,7 @@ main(int argc, char *argv[])
 	mg_init((int)img_width, (int)img_height, "image viewer", env);
 
 	/* create mg_image object */
-	image = mg_image_create(img_data, img_width, img_height);
+	image = mg_image_create(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX);
 	free(img_data);
 
 	/* display image */
