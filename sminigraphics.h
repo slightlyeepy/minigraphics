@@ -613,6 +613,7 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 
 	ximage = XCreateImage(mg.dpy, CopyFromParent, mg.depth, ZPixmap,
 			0, NULL, width, height, 32, (int)(width * 4));
+
 	ximage->data = malloc(width * height * 4);
 	if (!ximage->data)
 		MG__ERROR(MG_OUT_OF_MEMORY)
@@ -792,6 +793,14 @@ int mg_height;
 enum mg_error mg_errno;
 
 /* internal utility functions */
+static void
+mg__clear_buf(uint32_t *buf, size_t w, size_t h)
+{
+	size_t i = 0;
+	for (; i < w * h; ++i)
+		buf[i] = mg.bgcolor;
+}
+
 static void
 mg__frametrimcpy(uint32_t *dst, const uint32_t *src, size_t oldwidth, size_t newwidth,
 		size_t oldstride, size_t newstride, size_t oldheight, size_t newheight)
@@ -1223,9 +1232,10 @@ mg__xdg_toplevel_configure(void *data, MG_UNUSED struct xdg_toplevel *xdg_toplev
 		stride = (size_t)mg_width * 4;
 		size = stride * (size_t)mg_height;
 
-		new_draw_buf = calloc(size, 1);
+		new_draw_buf = malloc(size);
 		if (!new_draw_buf)
 			MG__ERROR(MG_OUT_OF_MEMORY)
+		mg__clear_buf(new_draw_buf, (size_t)mg_width, (size_t)mg_height);
 		mg__frametrimcpy(new_draw_buf, mg_state->draw_buf,
 			mg_state->buf_width, (size_t)mg_width,
 			mg_state->buf_stride, stride,
@@ -1375,9 +1385,10 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	*mg.err_return = *err_return;
 
-	mg.draw_buf = calloc(mg.buf_size, 1);
+	mg.draw_buf = malloc(mg.buf_size);
 	if (!mg.draw_buf)
 		MG__ERROR(MG_OUT_OF_MEMORY)
+	mg_clear();
 
 	mg.pending_quit = 0;
 	mg.pending_resize = 0;
@@ -1409,9 +1420,6 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	while (mg.configured < 2)
 		wl_display_dispatch(mg.wl_display);
-
-	mg_clear();
-	mg_flush();
 }
 
 void
@@ -1474,9 +1482,7 @@ mg_waitevent(struct mg_event *event)
 void
 mg_clear(void)
 {
-	size_t i = 0;
-	for (; i < mg.buf_width * mg.buf_height; ++i)
-		mg.draw_buf[i] = mg.bgcolor;
+	mg__clear_buf(mg.draw_buf, mg.buf_width, mg.buf_height);
 }
 
 void
