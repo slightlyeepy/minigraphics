@@ -10,7 +10,7 @@
 #include <string.h>
 
 #define MG_IMPLEMENTATION
-#include "../../minigraphics.h"
+#include "../../sminigraphics.h"
 
 #define LEN(x) (sizeof(x) / sizeof(x[0]))
 #define FCLOSE_IF_NOT_STDIN(f) \
@@ -83,7 +83,6 @@ main(int argc, char *argv[])
 {
 	FILE *image_source;
 	struct mg_event event;
-	struct mg_image *image;
 	uint32_t *img_data;
 	uint32_t img_width, img_height;
 	jmp_buf env;
@@ -113,12 +112,8 @@ main(int argc, char *argv[])
 	/* create a window of the same size as the image */
 	mg_init((int)img_width, (int)img_height, "image viewer", env);
 
-	/* create mg_image object */
-	image = mg_image_create(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX);
-	free(img_data);
-
 	/* display image */
-	mg_image_draw(image, 0, 0);
+	mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);
 	mg_flush(); /* make sure our changes are written to the screen */
 
 	for (;;) {
@@ -129,13 +124,13 @@ main(int argc, char *argv[])
 		} else if (event.type == MG_RESIZE || event.type == MG_REDRAW) {
 			/* clear and redraw */
 			mg_clear();
-			mg_image_draw(image, 0, 0);
+			mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);
 			mg_flush(); /* make sure our changes are written to the screen */
 		}
 	}
 
 	/* cleanup */
-	mg_image_free(image);
+	free(img_data);
 	mg_quit();
 	return 0;
 }

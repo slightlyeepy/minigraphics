@@ -5,11 +5,11 @@ SRC     = events.c
 HEADERS = ../../minigraphics.h
 
 WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wconversion -Wstrict-prototypes -Wdeprecated
-CFLAGS  = -D_POSIX_C_SOURCE=200112L -Ofast -lxkbcommon $(WFLAGS)
+CFLAGS  = -I. -D_POSIX_C_SOURCE=200112L -Ofast -lxkbcommon $(WFLAGS)
 
 X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
 WL_CFLAGS   = -lrt -lwayland-client -DMG_BACKEND_WAYLAND
-WL_PROTOCOL = xdg-shell-protocol.c ../../xdg-shell-client-protocol.h
+WL_PROTOCOL = xdg-shell-protocol.c xdg-shell-client-protocol.h
 
 all: x11 wayland
 
@@ -22,10 +22,10 @@ xdg-shell-protocol.c: /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xm
 	wayland-scanner private-code \
 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
 		> xdg-shell-protocol.c
-../../xdg-shell-client-protocol.h: /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
+xdg-shell-client-protocol.h: /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml
 	wayland-scanner client-header \
 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
-		> ../../xdg-shell-client-protocol.h
+		> xdg-shell-client-protocol.h
 
 clean:
 	rm -f events-x11 events-wayland $(WL_PROTOCOL) *.o
