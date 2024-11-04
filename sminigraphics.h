@@ -1495,7 +1495,7 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 		for (; dy < (int)height; ++dy) {
 			for (dx = 0; dx < (int)width; ++dx) {
 				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
-						(dy + y) < (int)mg.buf_height)
+						(dy + y) < (int)mg.buf_height) {
 					/* remember we're using XRGB */
 					if (pixel_format == MG_PIXEL_FORMAT_RGBX)
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
@@ -1508,6 +1508,7 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 					else if (pixel_format == MG_PIXEL_FORMAT_XRGB)
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							data[i];
+				}
 				++i;
 			}
 		}
