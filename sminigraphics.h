@@ -620,18 +620,22 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 
 	for (; i < width * height; ++i) {
 		/* X seems to use BGRX for images, so convert our image to that */
-		if (pixel_format == MG_PIXEL_FORMAT_RGBX) {
+		switch (pixel_format) {
+		case MG_PIXEL_FORMAT_RGBX:
 			ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
 			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
 			ximage->data[j + 2] = (char)((data[i] & 0xff000000) >> 24);
-		} else if (pixel_format == MG_PIXEL_FORMAT_BGRX) {
-			ximage->data[j] =     (char)((data[i] & 0xff000000) >> 8);
+			break;
+		case MG_PIXEL_FORMAT_BGRX:
+			ximage->data[j] =     (char)((data[i] & 0xff000000) >> 24);
 			ximage->data[j + 1] = (char)((data[i] & 0x00ff0000) >> 16);
-			ximage->data[j + 2] = (char)((data[i] & 0x0000ff00) >> 24);
-		} else if (pixel_format == MG_PIXEL_FORMAT_XRGB) {
+			ximage->data[j + 2] = (char)((data[i] & 0x0000ff00) >> 8);
+			break;
+		case MG_PIXEL_FORMAT_XRGB:
 			ximage->data[j] =     (char)(data[i] & 0x000000ff);
 			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 8);
 			ximage->data[j + 2] = (char)((data[i] & 0x00ff0000) >> 16);
+			break;
 		}
 		j += 4;
 	}
@@ -1497,17 +1501,22 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
 						(dy + y) < (int)mg.buf_height) {
 					/* remember we're using XRGB */
-					if (pixel_format == MG_PIXEL_FORMAT_RGBX)
+					switch (pixel_format) {
+					case MG_PIXEL_FORMAT_RGBX:
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							data[i] >> 8;
-					else if (pixel_format == MG_PIXEL_FORMAT_BGRX)
+						break;
+					case MG_PIXEL_FORMAT_BGRX:
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							((data[i] & 0xff000000) >> 24) |
 							((data[i] & 0x00ff0000) >> 8) |
 							((data[i] & 0x0000ff00) << 8);
-					else if (pixel_format == MG_PIXEL_FORMAT_XRGB)
+						break;
+					case MG_PIXEL_FORMAT_XRGB:
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							data[i];
+						break;
+					}
 				}
 				++i;
 			}
