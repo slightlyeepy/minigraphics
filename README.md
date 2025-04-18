@@ -4,10 +4,10 @@ current features include:
 - X11 and Wayland backends
 - SDL-like event handling loop
 - drawing from a memory buffer
+
+an [additional utility library](util/minidraw.h) exists for:
 - drawing pixels/lines/triangles/rectangles/circles, both filled and outlined
 - drawing ASCII text in an 8x8 bitmap font
-
-minigraphics provides two versions: a "small" one that can only draw things from a memory buffer, and a "regular" one that additionally provides an interface to draw shapes and text.
 
 # license
 
@@ -15,15 +15,19 @@ your choice between MIT/public domain, see [the header](minigraphics.h) for more
 
 # docs
 
-the main documentation is located in [the header](minigraphics.h) ([small edition](sminigraphics.h)) itself as comments; you might also want to see [the example programs](examples).
+the main documentation is located in [the header](minigraphics.h) itself as comments; you might also want to see [the example programs](examples).
 
 # dependencies
 
 - POSIX.1-2001 or later compliant standard C library
 - libxkbcommon
-- libX11 (X11 backend only)
-- libwayland + wayland-protocols (Wayland backend only)
-- POSIX.1-2001 or later compliant standard realtime library (`-lrt`) (Wayland backend only)
+
+X11 only:
+- libX11
+
+Wayland only:
+- libwayland + wayland-protocols
+- POSIX.1-2001 or later compliant standard realtime library (`-lrt`)
 
 # goals
 

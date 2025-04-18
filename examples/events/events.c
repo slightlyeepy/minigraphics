@@ -6,7 +6,7 @@
 #include <xkbcommon/xkbcommon.h>
 
 #define MG_IMPLEMENTATION
-#include "../../minigraphics.h"
+#include "minigraphics.h"
 
 static void
 print_key(struct mg_event *event)

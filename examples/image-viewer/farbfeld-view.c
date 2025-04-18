@@ -10,7 +10,7 @@
 #include <string.h>
 
 #define MG_IMPLEMENTATION
-#include "../../sminigraphics.h"
+#include "minigraphics.h"
 
 #define LEN(x) (sizeof(x) / sizeof(x[0]))
 #define FCLOSE_IF_NOT_STDIN(f) \

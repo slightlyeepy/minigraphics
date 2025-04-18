@@ -6,7 +6,7 @@
 #include <time.h>
 
 #define MG_IMPLEMENTATION
-#include "../../sminigraphics.h"
+#include "../../minigraphics.h"
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -64,7 +64,7 @@ calculate_z(float x, float y, float z, float a, float b)
 
 static void
 calculate_for_surface(float cube_x, float cube_y, float cube_z, float a, float b, float c,
-		float *z_buf, uint32_t *draw_buf, uint32_t color)
+		float *z_buf, uint32_t *draw, uint32_t color)
 {
 	float x = calculate_x(cube_x, cube_y, cube_z, a, b, c);
 	float y = calculate_y(cube_x, cube_y, cube_z, a, b, c);
@@ -79,7 +79,7 @@ calculate_for_surface(float cube_x, float cube_y, float cube_z, float a, float b
 	if (idx >= 0 && idx < WIDTH * HEIGHT) {
 		if (ooz > z_buf[idx]) {
 			z_buf[idx] = ooz;
-			draw_buf[idx] = color;
+			draw[idx] = color;
 		}
 	}
 }
@@ -93,7 +93,7 @@ main(void)
 	float cube_x, cube_y;
 	float a, b, c;
 	float *z_buf;
-	uint32_t *draw_buf;
+	uint32_t *draw;
 
 	if (setjmp(env)) {
 		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
@@ -108,8 +108,8 @@ main(void)
 		return 1;
 	}
 
-	draw_buf = malloc(WIDTH * HEIGHT * sizeof(uint32_t));
-	if (!draw_buf) {
+	draw = malloc(WIDTH * HEIGHT * sizeof(uint32_t));
+	if (!draw) {
 		free(z_buf);
 		fputs("malloc: out of memory\n", stderr);
 		return 1;
@@ -121,27 +121,27 @@ main(void)
 		if (mg_getevent(&event) && event.type == MG_QUIT)
 			break;
 
-		memset(draw_buf, 0xff, WIDTH * HEIGHT * sizeof(uint32_t));
+		memset(draw, 0xff, WIDTH * HEIGHT * sizeof(uint32_t));
 		memset(z_buf, 0, WIDTH * HEIGHT * sizeof(float));
 
 		for (cube_x = -CUBE_WIDTH; cube_x < CUBE_WIDTH; cube_x += INCREMENT) {
 			for (cube_y = -CUBE_WIDTH; cube_y < CUBE_WIDTH; cube_y += INCREMENT) {
 				calculate_for_surface(cube_x, cube_y, -CUBE_WIDTH, a, b, c,
-						z_buf, draw_buf, 0x00000000);
+						z_buf, draw, 0x00000000);
 				calculate_for_surface(CUBE_WIDTH, cube_y, cube_x, a, b, c,
-						z_buf, draw_buf, 0x00ff0000);
+						z_buf, draw, 0x00ff0000);
 				calculate_for_surface(-CUBE_WIDTH, cube_y, -cube_x, a, b, c,
-						z_buf, draw_buf, 0x0000ff00);
+						z_buf, draw, 0x0000ff00);
 				calculate_for_surface(-cube_x, cube_y, CUBE_WIDTH, a, b, c,
-						z_buf, draw_buf, 0x000000ff);
+						z_buf, draw, 0x000000ff);
 				calculate_for_surface(cube_x, -CUBE_WIDTH, -cube_y, a, b, c,
-						z_buf, draw_buf, 0x00ffff00);
+						z_buf, draw, 0x00ffff00);
 				calculate_for_surface(cube_x, CUBE_WIDTH, cube_y, a, b, c,
-						z_buf, draw_buf, 0x0000ffff);
+						z_buf, draw, 0x0000ffff);
 			}
 		}
 
-		mg_draw(draw_buf, WIDTH, HEIGHT, MG_PIXEL_FORMAT_XRGB, 0, 0);
+		mg_draw(draw, WIDTH, HEIGHT, MG_PIXEL_FORMAT_XRGB, 0, 0);
 		mg_flush();
 
 		a += 0.05f;
@@ -149,7 +149,7 @@ main(void)
 		c += 0.01f;
 		msleep(20);
 	}
-	free(draw_buf);
+	free(draw);
 	free(z_buf);
 	mg_quit();
 	return 0;
