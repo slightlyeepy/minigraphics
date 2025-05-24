@@ -86,6 +86,7 @@ main(int argc, char *argv[])
 	uint32_t *img_data;
 	uint32_t img_width, img_height;
 	jmp_buf env;
+	int fullscreen;
 
 	argv0 = argv[0];
 
@@ -111,6 +112,7 @@ main(int argc, char *argv[])
 
 	/* create a window of the same size as the image */
 	mg_init((int)img_width, (int)img_height, "image viewer", env);
+	fullscreen = 0;
 
 	/* display image */
 	mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);
@@ -126,6 +128,10 @@ main(int argc, char *argv[])
 			mg_clear();
 			mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);
 			mg_flush(); /* make sure our changes are written to the screen */
+		} else if (event.type == MG_KEYDOWN &&
+				(event.key == XKB_KEY_f || event.key == XKB_KEY_F)) {
+			fullscreen = !fullscreen;
+			mg_fullscreen(fullscreen);
 		}
 	}
 

@@ -2,7 +2,7 @@
 
 CC      = cc
 SRC     = moving-shapes.c
-HEADERS = ../../minigraphics.h
+HEADERS = ../../minigraphics.h ../../minidraw.h
 
 WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra -Wdeclaration-after-statement -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wconversion -Wstrict-prototypes -Wdeprecated
 CFLAGS  = -I. -I../.. -D_POSIX_C_SOURCE=200112L -Ofast $(WFLAGS)

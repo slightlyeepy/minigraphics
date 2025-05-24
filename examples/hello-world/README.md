@@ -1,5 +1,7 @@
 an example program to draw some text saying "hello world".
 
+uses the `MG_PIXEL_FORMAT_256` pixel format as an example.
+
 compile with one of the following:
 ```
 make         # compiles both X11 and Wayland versions

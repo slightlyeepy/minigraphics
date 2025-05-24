@@ -9,7 +9,7 @@
 #include "minigraphics.h"
 
 #define MGD_IMPLEMENTATION
-#include "util/minidraw.h"
+#include "minidraw.h"
 
 static int
 msleep(long ms)
@@ -38,13 +38,16 @@ main(void)
 {
 	struct mg_event event;
 	jmp_buf env;
-	uint32_t *draw = NULL;
-	uint32_t w, h;
+	struct draw draw = {
+		.data = NULL,
+		.pixel_format = MG_PIXEL_FORMAT_XRGB
+	};
 
 	int xpos, ypos;
 
 	/* if a library error happens, a longjmp() to here will happen. */
 	if (setjmp(env)) {
+		free(draw.data); /* free(NULL) is a no-op */
 		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
 		return 1;
 	}
@@ -53,10 +56,10 @@ main(void)
 	mg_init(640, 480, "moving shapes", env);
 
 	/* create draw buffer */
-	w = (uint32_t)mg_width;
-	h = (uint32_t)mg_height;
-	draw = malloc(w * h * sizeof(uint32_t));
-	if (!draw) {
+	draw.width = (uint32_t)mg_width;
+	draw.height = (uint32_t)mg_height;
+	draw.data = malloc(draw.width * draw.height * sizeof(uint32_t));
+	if (!draw.data) {
 		fputs("malloc: out of memory\n", stderr);
 		return 1;
 	}
@@ -71,10 +74,10 @@ main(void)
 				break;
 			} else if (event.type == MG_RESIZE) {
 				/* resize draw buffer */
-				w = (uint32_t)mg_width;
-				h = (uint32_t)mg_height;
-				draw = realloc(draw, w * h * sizeof(uint32_t));
-				if (!draw) {
+				draw.width = (uint32_t)mg_width;
+				draw.height = (uint32_t)mg_height;
+				draw.data = realloc(draw.data, draw.width * draw.height * sizeof(uint32_t));
+				if (!draw.data) {
 					fputs("realloc: out of memory\n", stderr);
 					return 1;
 				}
@@ -102,29 +105,30 @@ main(void)
 		else
 			++xpos;
 
-		mgd_fill(draw, w, h, 0x00ffffff); /* clear contents */
+		mgd_fill(&draw, 0x00ffffff); /* clear contents */
 
 		/* draw a bunch of shapes */
-		mgd_fillrect(draw, w, h, 0x00000000, xpos + 50, ypos + 50, xpos + 100, ypos + 100);
-		mgd_drawrect(draw, w, h, 0x00000000, xpos + 200, ypos, xpos + 225, ypos + 25);
-		mgd_fillcircle(draw, w, h, 0x00000000, xpos, ypos + 200, 100);
-		mgd_drawcircle(draw, w, h, 0x00000000, xpos + 200, ypos + 200, 100);
-		mgd_drawrect(draw, w, h, 0x00000000, xpos + 100, ypos + 100, xpos + 300, ypos + 300);
-		mgd_filltriangle(draw, w, h, 0x00000000, xpos, ypos - 100, xpos + 50, ypos, xpos - 50, ypos);
-		mgd_filltriangle(draw, w, h, 0x00000000, xpos + 200, ypos + 300, xpos + 230, ypos + 400,
+		mgd_fillrect(&draw, 0x00000000, xpos + 50, ypos + 50, xpos + 100, ypos + 100);
+		mgd_drawrect(&draw, 0x00000000, xpos + 200, ypos, xpos + 225, ypos + 25);
+		mgd_fillcircle(&draw, 0x00000000, xpos, ypos + 200, 100);
+		mgd_drawcircle(&draw, 0x00000000, xpos + 200, ypos + 200, 100);
+		mgd_drawrect(&draw, 0x00000000, xpos + 100, ypos + 100, xpos + 300, ypos + 300);
+		mgd_filltriangle(&draw, 0x00000000, xpos, ypos - 100, xpos + 50, ypos, xpos - 50, ypos);
+		mgd_filltriangle(&draw, 0x00000000, xpos + 200, ypos + 300, xpos + 230, ypos + 400,
 				xpos + 180, ypos + 500);
 
 		/* 264 = width of text divided by 2 */
-		mgd_drawtext(draw, w, h, 0x00000000, mg_width / 2 - 264, 100, "use W or S to move shapes up/down", 2);
+		mgd_drawtext(&draw, 0x00000000, mg_width / 2 - 264, 100, "use W or S to move shapes up/down", 2);
 
 		/* draw buffer contents to window */
-		mg_draw(draw, w, h, MG_PIXEL_FORMAT_XRGB, 0, 0);
+		mg_draw(draw.data, draw.width, draw.height, draw.pixel_format, 0, 0);
 		mg_flush(); /* make sure our changes are written to the screen */
 
 		msleep(50); /* 20 FPS */
 	}
 
 	/* cleanup */
+	free(draw.data);
 	mg_quit();
 	return 0;
 }

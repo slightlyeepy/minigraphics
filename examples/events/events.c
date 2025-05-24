@@ -9,7 +9,7 @@
 #include "minigraphics.h"
 
 static void
-print_key(struct mg_event *event)
+print_key(const struct mg_event *event)
 {
 	char buf[128];
 	fputs(event->type == MG_KEYDOWN ? "recieved event: MG_KEYDOWN:     " :
@@ -21,7 +21,7 @@ print_key(struct mg_event *event)
 }
 
 static void
-print_mousebtn(struct mg_event *event)
+print_mousebtn(const struct mg_event *event)
 {
 	static const char *buttonnames[] = {
 		"no button",
@@ -60,8 +60,7 @@ main(void)
 			cont = 0;
 			break;
 		case MG_RESIZE:
-			printf("recieved event: MG_RESIZE:      width = %d, height = %d\n",
-					mg_width, mg_height);
+			printf("recieved event: MG_RESIZE:      width = %d, height = %d\n", mg_width, mg_height);
 			break;
 		case MG_REDRAW:
 			puts("recieved event: MG_REDRAW");
@@ -75,8 +74,7 @@ main(void)
 			print_mousebtn(&event);
 			break;
 		case MG_MOUSEMOTION:
-			printf("recieved event: MG_MOUSEMOTION: x = %d, y = %d\n",
-					event.x, event.y);
+			printf("recieved event: MG_MOUSEMOTION: x = %d, y = %d\n", event.x, event.y);
 			break;
 		default:
 			break;

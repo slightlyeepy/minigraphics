@@ -1,0 +1,9 @@
+{
+  "name": "minigraphics",
+  "version": "dev",
+  "repo": "slightlyeepy/minigraphics",
+  "description": "draw stuff to a window and get input from it",
+  "keywords": [ "graphics", "single-header-library" ],
+  "license": "Unlicense",
+  "src": [ "minigraphics.h", "minidraw.h" ]
+}

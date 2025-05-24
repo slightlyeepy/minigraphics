@@ -19,6 +19,14 @@
 
 #define INCREMENT 0.5f
 
+#define BLACK  0
+#define RED    12
+#define GREEN  10
+#define BLUE   9
+#define YELLOW 14
+#define CYAN   11
+#define WHITE  15
+
 static int
 msleep(long ms)
 {
@@ -64,7 +72,7 @@ calculate_z(float x, float y, float z, float a, float b)
 
 static void
 calculate_for_surface(float cube_x, float cube_y, float cube_z, float a, float b, float c,
-		float *z_buf, uint32_t *draw, uint32_t color)
+		float *z_buf, uint8_t *draw, uint8_t color)
 {
 	float x = calculate_x(cube_x, cube_y, cube_z, a, b, c);
 	float y = calculate_y(cube_x, cube_y, cube_z, a, b, c);
@@ -93,7 +101,7 @@ main(void)
 	float cube_x, cube_y;
 	float a, b, c;
 	float *z_buf;
-	uint32_t *draw;
+	uint8_t *draw;
 
 	if (setjmp(env)) {
 		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
@@ -108,7 +116,7 @@ main(void)
 		return 1;
 	}
 
-	draw = malloc(WIDTH * HEIGHT * sizeof(uint32_t));
+	draw = malloc(WIDTH * HEIGHT);
 	if (!draw) {
 		free(z_buf);
 		fputs("malloc: out of memory\n", stderr);
@@ -121,27 +129,27 @@ main(void)
 		if (mg_getevent(&event) && event.type == MG_QUIT)
 			break;
 
-		memset(draw, 0xff, WIDTH * HEIGHT * sizeof(uint32_t));
+		memset(draw, WHITE, WIDTH * HEIGHT);
 		memset(z_buf, 0, WIDTH * HEIGHT * sizeof(float));
 
 		for (cube_x = -CUBE_WIDTH; cube_x < CUBE_WIDTH; cube_x += INCREMENT) {
 			for (cube_y = -CUBE_WIDTH; cube_y < CUBE_WIDTH; cube_y += INCREMENT) {
 				calculate_for_surface(cube_x, cube_y, -CUBE_WIDTH, a, b, c,
-						z_buf, draw, 0x00000000);
+						z_buf, draw, BLACK);
 				calculate_for_surface(CUBE_WIDTH, cube_y, cube_x, a, b, c,
-						z_buf, draw, 0x00ff0000);
+						z_buf, draw, RED);
 				calculate_for_surface(-CUBE_WIDTH, cube_y, -cube_x, a, b, c,
-						z_buf, draw, 0x0000ff00);
+						z_buf, draw, GREEN);
 				calculate_for_surface(-cube_x, cube_y, CUBE_WIDTH, a, b, c,
-						z_buf, draw, 0x000000ff);
+						z_buf, draw, BLUE);
 				calculate_for_surface(cube_x, -CUBE_WIDTH, -cube_y, a, b, c,
-						z_buf, draw, 0x00ffff00);
+						z_buf, draw, YELLOW);
 				calculate_for_surface(cube_x, CUBE_WIDTH, cube_y, a, b, c,
-						z_buf, draw, 0x0000ffff);
+						z_buf, draw, CYAN);
 			}
 		}
 
-		mg_draw(draw, WIDTH, HEIGHT, MG_PIXEL_FORMAT_XRGB, 0, 0);
+		mg_draw((uint32_t *)draw, WIDTH, HEIGHT, MG_PIXEL_FORMAT_256, 0, 0);
 		mg_flush();
 
 		a += 0.05f;

@@ -13,8 +13,7 @@
  * ===========================================================================
  * USAGE
  *
- * if you are planning to use the Wayland backend, read the
- * "WAYLAND PROTOCOLS" section below.
+ * make sure to read the "BACKEND-SPECIFIC INSTRUCTIONS" section below.
  *
  * include this header wherever you need it as usual. in ONE file, add:
  * 	#define MG_IMPLEMENTATION
@@ -38,11 +37,20 @@
  * see the examples directory for example programs.
  *
  * ===========================================================================
- * WAYLAND PROTOCOLS
+ * BACKEND-SPECIFIC INSTRUCTIONS
  *
- * if you are planning to use the Wayland backend, you'll need the header
- * "xdg-shell-client-protocol.h" in the same directory as this header,
- * AND you'll need to add "xdg-shell-protocol.c" to your sources.
+ * X11
+ * --------------------------
+ * no extra stuff is needed.
+ *
+ * example compiler command:
+ * cc -lX11 -DMG_BACKEND_X11 -o program program.c
+ *
+ * WAYLAND
+ * --------------------------
+ * you'll need the header "xdg-shell-client-protocol.h" in the same directory
+ * as this header (or in your include paths), AND you'll need to add
+ * "xdg-shell-protocol.c" to your sources.
  *
  * to generate these files, make sure you have wayland-protocols and
  * wayland-scanner (typically provided by a package named 'wayland' or
@@ -55,6 +63,10 @@
  * wayland-scanner client-header \
  * 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
  * 		> xdg-shell-client-protocol.h
+ *
+ * example compiler command:
+ * cc -lrt -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND -I. \
+ * 		-o program xdg-shell-protocol.c program.c
  */
 #if !defined(MG_H)
 #define MG_H
@@ -114,15 +126,15 @@ extern enum mg_error mg_errno;
  * these are all of the possible events that can be recieved.
  */
 enum mg_event_type {
-	MG_NOEVENT,    /* used internally, never reported */
-	MG_QUIT,       /* user has requested to close the window */
-	MG_RESIZE,     /* window has been resized */
-	MG_REDRAW,     /* window should be redrawn */
-	MG_KEYDOWN,    /* a key on the keyboard has been pressed */
-	MG_KEYUP,      /* a key on the keyboard has been unpressed */
-	MG_MOUSEDOWN,  /* a button on the mouse has been pressed */
-	MG_MOUSEUP,    /* a button on the mouse has been unpressed */
-	MG_MOUSEMOTION /* the mouse has moved */
+	MG_NOEVENT,     /* used internally, never reported */
+	MG_QUIT,        /* user has requested to close the window */
+	MG_RESIZE,      /* window has been resized */
+	MG_REDRAW,      /* window should be redrawn */
+	MG_KEYDOWN,     /* a key on the keyboard has been pressed */
+	MG_KEYUP,       /* a key on the keyboard has been unpressed */
+	MG_MOUSEDOWN,   /* a button on the mouse has been pressed */
+	MG_MOUSEUP,     /* a button on the mouse has been unpressed */
+	MG_MOUSEMOTION  /* the mouse has moved */
 };
 /* a mouse button is represented one of the following values: */
 enum mg_mouse_btn {
@@ -135,9 +147,10 @@ enum mg_mouse_btn {
 };
 /* available pixel formats for images are: */
 enum mg_pixel_format {
-	MG_PIXEL_FORMAT_RGBX,
-	MG_PIXEL_FORMAT_BGRX,
-	MG_PIXEL_FORMAT_XRGB
+	MG_PIXEL_FORMAT_RGBX, /* RGBA with A component ignored, 4 bytes per pixel */
+	MG_PIXEL_FORMAT_BGRX, /* BGRA with A component ignored, 4 bytes per pixel */
+	MG_PIXEL_FORMAT_XRGB, /* ARGB with A component ignored, 4 bytes per pixel */
+	MG_PIXEL_FORMAT_256   /* mode 13h color palette, 1 byte per pixel */
 };
 /*
  * when an event is recieved (see below on how they are recieved), it
@@ -163,8 +176,8 @@ struct mg_event {
 	 * X and Y position of the mouse cursor -- if 'type' is not
 	 * MG_MOUSEMOTION, the values of these fields are undefined.
 	 */
-	int x;		   /* mouse cursor X position */
-	int y;		   /* mouse cursor Y position */
+	int x; /* mouse cursor X position */
+	int y; /* mouse cursor Y position */
 };
 /*
  * now, for the functions.
@@ -182,9 +195,12 @@ MG__DEF void mg_init(int w, int h, const char *title, jmp_buf err_return);
  * the 'err_return' parameter must be a valid jmp_buf initialized by a call to
  * setjmp(). if an error is ever encountered, a longjmp() to there occurs;
  * you can use the variable 'mg_errno' to determine what error occurred.
- *
- * to change the window title, use:
  */
+
+/*
+ * the window is configurable using:
+ */
+MG__DEF void mg_fullscreen(int enable);
 MG__DEF void mg_set_title(const char *title);
 /*
  * if an error occurs, to convert that 'mg_error' into an error message, use:
@@ -196,23 +212,25 @@ MG__DEF const char *mg_strerror(enum mg_error err);
 MG__DEF void mg_quit(void);
 /*
  * to exit the library; this will close the window. do not call this if
- * you are exiting due to a library error.
- *
- * to recieve an event, you can call:
+ * you are exiting due to a MG_INIT_FAILED error.
+ */
+
+/*
+ * to recieve events, call one of:
  */
 MG__DEF int mg_getevent(struct mg_event *event);
-/*
- * 'event' must be a valid pointer to a mg_event structure; the event
- * data will be stored inside this structure. if no events are
- * currently pending, 0 is returned; otherwise, 1 is returned.
- *
- * alternatively, you can call:
- */
 MG__DEF void mg_waitevent(struct mg_event *event);
 /*
- * which will block until an event is recieved and store the event data
- * inside the structure pointed to by 'event'.
+ * 'event' must be a valid pointer to a mg_event structure; the event
+ * data will be stored inside this structure.
  *
+ * mg_getevent returns instantly -- if no events are currently pending,
+ * 0 is returned; otherwise, 1 is returned.
+ *
+ * mg_waitevent blocks until an event is recieved.
+ */
+
+/*
  * to draw things on the window, use one of the following functions:
  */
 
@@ -220,14 +238,17 @@ MG__DEF void mg_waitevent(struct mg_event *event);
 MG__DEF void mg_clear(void);
 
 /*
- * draw the contents of the memory buffer 'data', which should contain valid
- * data with each pixel being represented by one value. the pixel format is
- * determined by 'pixel_format'.
+ * draw the contents of the memory buffer 'data'. the pixel format is
+ * determined by 'pixel_format'. each value represents 1 pixel.
+ *
+ * for 1 byte-per-pixel pixel formats, 'data' will be casted to a
+ * (uint8_t *). thus, if you want to use a 1 byte-per-pixel pixel format,
+ * it is recommended to use a (uint8_t *) and pass it as the 'data' parameter.
  *
  * 'width' and 'height' specify the image's width and height in pixels.
  *
  * if 'width' does not match image's width or 'height' is larger than
- * the image's height, the behaviour is undefined.
+ * the image's height, the behavior is undefined.
  *
  * if either 'width' or 'height' are zero, nothing is drawn.
  *
@@ -283,6 +304,42 @@ static const char *mg__strerrors[] = {
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 
+/* constants */
+static const uint32_t mg__256_palette[256] = {
+	0x00000000, 0xaa020000, 0x00aa1400, 0xaaaa0000, 0x0300aa00, 0xaa00aa00, 0x0055aa00, 0xaaaaaa00,
+	0x55555500, 0xff555500, 0x55ff5500, 0xffff5500, 0x5555ff00, 0xff55fd00, 0x55ffff00, 0xffffff00,
+	0x00000000, 0x10101000, 0x20202000, 0x35353500, 0x45454500, 0x55555500, 0x65656500, 0x75757500,
+	0x8a8a8a00, 0x9a9a9a00, 0xaaaaaa00, 0xbababa00, 0xcacaca00, 0xdfdfdf00, 0xefefef00, 0xffffff00,
+	0xff040000, 0xff044100, 0xff038200, 0xff02be00, 0xff00fd00, 0xbe00fe00, 0x8200ff00, 0x4100ff00,
+	0x0800ff00, 0x0541ff00, 0x0082ff00, 0x00beff00, 0x00ffff00, 0x00ffbe00, 0x00ff8200, 0x01ff4100,
+	0x00ff2400, 0x42ff2200, 0x82ff1d00, 0xbeff1200, 0xffff0000, 0xffbe0000, 0xff820100, 0xff410000,
+	0xff828200, 0xff829e00, 0xff82be00, 0xff82df00, 0xff82fd00, 0xdf82fe00, 0xbe82ff00, 0x9e82ff00,
+	0x8282ff00, 0x829eff00, 0x82beff00, 0x82dfff00, 0x82ffff00, 0x82ffdf00, 0x82ffbe00, 0x82ff9e00,
+	0x82ff8200, 0x9eff8200, 0xbeff8200, 0xdfff8200, 0xffff8200, 0xffdf8200, 0xffbe8200, 0xff9e8200,
+	0xffbaba00, 0xffbaca00, 0xffbadf00, 0xffbaef00, 0xffbafe00, 0xefbafe00, 0xdfbaff00, 0xcabaff00,
+	0xbabaff00, 0xbacaff00, 0xbadfff00, 0xbaefff00, 0xbaffff00, 0xbaffef00, 0xbaffdf00, 0xbbffca00,
+	0xbaffba00, 0xcaffba00, 0xdfffba00, 0xefffba00, 0xffffba00, 0xffefba00, 0xffdfba00, 0xffcaba00,
+	0x71010100, 0x71011c00, 0x71013900, 0x71005500, 0x71007100, 0x55007100, 0x39007100, 0x1c007100,
+	0x01007100, 0x011c7100, 0x00397100, 0x00557100, 0x00717100, 0x00715500, 0x00713900, 0x00711c00,
+	0x00710900, 0x1c710900, 0x39710600, 0x55710300, 0x71710000, 0x71550000, 0x71390000, 0x711c0000,
+	0x71393900, 0x71394500, 0x71395500, 0x71396100, 0x71397100, 0x61397100, 0x55397100, 0x45397100,
+	0x39397100, 0x39457100, 0x39557100, 0x39617100, 0x39717100, 0x39716100, 0x39715500, 0x3a714500,
+	0x39713900, 0x45713900, 0x55713900, 0x61713900, 0x71713900, 0x71613900, 0x71553900, 0x72453900,
+	0x71515100, 0x71515900, 0x71516100, 0x71516900, 0x71517100, 0x69517100, 0x61517100, 0x59517100,
+	0x51517100, 0x51597100, 0x51617100, 0x51697100, 0x51717100, 0x51716900, 0x51716100, 0x51715900,
+	0x51715100, 0x5a715100, 0x61715100, 0x69715100, 0x71715100, 0x71695100, 0x71615100, 0x71595100,
+	0x42000000, 0x41001100, 0x41002000, 0x41003100, 0x41004100, 0x32004100, 0x20004100, 0x10004100,
+	0x00004100, 0x00104100, 0x00204100, 0x00314100, 0x00414100, 0x00413100, 0x00412000, 0x00411000,
+	0x00410300, 0x10410300, 0x20410200, 0x31410100, 0x41410000, 0x41310000, 0x41200000, 0x41100000,
+	0x41202000, 0x41202800, 0x41203100, 0x41203900, 0x41204100, 0x39204100, 0x31204100, 0x28204100,
+	0x20204100, 0x20284100, 0x20314100, 0x21394100, 0x20414100, 0x20413900, 0x20413100, 0x20412800,
+	0x20412000, 0x28412000, 0x31412000, 0x39412000, 0x41412000, 0x41392000, 0x41312000, 0x41282000,
+	0x412d2d00, 0x412d3100, 0x412d3500, 0x412d3d00, 0x412d4100, 0x3d2d4100, 0x352d4100, 0x312d4100,
+	0x2d2d4100, 0x2d314100, 0x2d354100, 0x2d3d4100, 0x2d414100, 0x2d413d00, 0x2d413500, 0x2d413100,
+	0x2d412d00, 0x31412d00, 0x35412d00, 0x3d412d00, 0x41412d00, 0x413d2d00, 0x41352d00, 0x41312d00,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
+};
+
 /* macros */
 #define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
 #define MG__MIN(x, y) ((x < y) ? x : y)
@@ -295,6 +352,8 @@ struct mg__state {
 	Display *dpy;
 	Window root, win;
 	Atom wmdeletewin;
+	Atom wmstate;
+	Atom fullscreen;
 	GC gc;
 	Colormap colormap;
 	unsigned int depth;
@@ -488,6 +547,10 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg.wmdeletewin = XInternAtom(mg.dpy, "WM_DELETE_WINDOW", 1);
 	XSetWMProtocols(mg.dpy, mg.win, &mg.wmdeletewin, 1);
 
+	/* sentinel values for the other 2 Atoms */
+	mg.wmstate = 0;
+	mg.fullscreen = 0;
+
 	/* tell X what events we are interested in */
 	XSelectInput(mg.dpy, mg.win, MG__X_EVENT_MASK | PointerMotionMask);
 
@@ -512,6 +575,37 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 			break;
 		}
 	}
+}
+
+void
+mg_fullscreen(int enable)
+{
+	XEvent xev;
+
+	(void)enable;
+	if (mg.wmstate == 0)
+		mg.wmstate = XInternAtom(mg.dpy, "_NET_WM_STATE", False);
+	if (mg.fullscreen == 0)
+		mg.fullscreen = XInternAtom(mg.dpy, "_NET_WM_STATE_FULLSCREEN", False);
+	memset(&xev, 0, sizeof(xev));
+	xev.type = ClientMessage;
+	xev.xclient.window = mg.win;
+	xev.xclient.message_type = mg.wmstate;
+	xev.xclient.format = 32;
+
+	/*
+	 * https://specifications.freedesktop.org/wm-spec/latest/ar01s05.html#id-1.6.8
+	 *
+	 * _NET_WM_STATE_REMOVE        0       remove/unset property
+	 * _NET_WM_STATE_ADD           1       add/set property
+	 * _NET_WM_STATE_TOGGLE        2       toggle property
+	 */
+	xev.xclient.data.l[0] = !!enable;
+
+	xev.xclient.data.l[1] = (long)mg.fullscreen;
+	xev.xclient.data.l[2] = 0;
+	XSendEvent(mg.dpy, mg.root, False,
+			SubstructureRedirectMask | SubstructureNotifyMask, &xev);
 }
 
 void
@@ -635,6 +729,14 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 8);
 			ximage->data[j + 2] = (char)((data[i] & 0x00ff0000) >> 16);
 			break;
+		case MG_PIXEL_FORMAT_256:
+			{
+				uint32_t px = mg__256_palette[((uint8_t *)data)[i]];
+				ximage->data[j] =     (char)((px & 0xff000000) >> 24);
+				ximage->data[j + 1] = (char)((px & 0x00ff0000) >> 16);
+				ximage->data[j + 2] = (char)((px & 0x0000ff00) >> 8);
+			}
+			break;
 		}
 		j += 4;
 	}
@@ -718,6 +820,42 @@ mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
 #include <xkbcommon/xkbcommon.h>
 
 #include "xdg-shell-client-protocol.h"
+
+/* constants */
+static const uint32_t mg__256_palette[256] = {
+	0x000000, 0x0002aa, 0x14aa00, 0x00aaaa, 0xaa0003, 0xaa00aa, 0xaa5500, 0xaaaaaa,
+	0x555555, 0x5555ff, 0x55ff55, 0x55ffff, 0xff5555, 0xfd55ff, 0xffff55, 0xffffff,
+	0x000000, 0x101010, 0x202020, 0x353535, 0x454545, 0x555555, 0x656565, 0x757575,
+	0x8a8a8a, 0x9a9a9a, 0xaaaaaa, 0xbababa, 0xcacaca, 0xdfdfdf, 0xefefef, 0xffffff,
+	0x0004ff, 0x4104ff, 0x8203ff, 0xbe02ff, 0xfd00ff, 0xfe00be, 0xff0082, 0xff0041,
+	0xff0008, 0xff4105, 0xff8200, 0xffbe00, 0xffff00, 0xbeff00, 0x82ff00, 0x41ff01,
+	0x24ff00, 0x22ff42, 0x1dff82, 0x12ffbe, 0x00ffff, 0x00beff, 0x0182ff, 0x0041ff,
+	0x8282ff, 0x9e82ff, 0xbe82ff, 0xdf82ff, 0xfd82ff, 0xfe82df, 0xff82be, 0xff829e,
+	0xff8282, 0xff9e82, 0xffbe82, 0xffdf82, 0xffff82, 0xdfff82, 0xbeff82, 0x9eff82,
+	0x82ff82, 0x82ff9e, 0x82ffbe, 0x82ffdf, 0x82ffff, 0x82dfff, 0x82beff, 0x829eff,
+	0xbabaff, 0xcabaff, 0xdfbaff, 0xefbaff, 0xfebaff, 0xfebaef, 0xffbadf, 0xffbaca,
+	0xffbaba, 0xffcaba, 0xffdfba, 0xffefba, 0xffffba, 0xefffba, 0xdfffba, 0xcaffbb,
+	0xbaffba, 0xbaffca, 0xbaffdf, 0xbaffef, 0xbaffff, 0xbaefff, 0xbadfff, 0xbacaff,
+	0x010171, 0x1c0171, 0x390171, 0x550071, 0x710071, 0x710055, 0x710039, 0x71001c,
+	0x710001, 0x711c01, 0x713900, 0x715500, 0x717100, 0x557100, 0x397100, 0x1c7100,
+	0x097100, 0x09711c, 0x067139, 0x037155, 0x007171, 0x005571, 0x003971, 0x001c71,
+	0x393971, 0x453971, 0x553971, 0x613971, 0x713971, 0x713961, 0x713955, 0x713945,
+	0x713939, 0x714539, 0x715539, 0x716139, 0x717139, 0x617139, 0x557139, 0x45713a,
+	0x397139, 0x397145, 0x397155, 0x397161, 0x397171, 0x396171, 0x395571, 0x394572,
+	0x515171, 0x595171, 0x615171, 0x695171, 0x715171, 0x715169, 0x715161, 0x715159,
+	0x715151, 0x715951, 0x716151, 0x716951, 0x717151, 0x697151, 0x617151, 0x597151,
+	0x517151, 0x51715a, 0x517161, 0x517169, 0x517171, 0x516971, 0x516171, 0x515971,
+	0x000042, 0x110041, 0x200041, 0x310041, 0x410041, 0x410032, 0x410020, 0x410010,
+	0x410000, 0x411000, 0x412000, 0x413100, 0x414100, 0x314100, 0x204100, 0x104100,
+	0x034100, 0x034110, 0x024120, 0x014131, 0x004141, 0x003141, 0x002041, 0x001041,
+	0x202041, 0x282041, 0x312041, 0x392041, 0x412041, 0x412039, 0x412031, 0x412028,
+	0x412020, 0x412820, 0x413120, 0x413921, 0x414120, 0x394120, 0x314120, 0x284120,
+	0x204120, 0x204128, 0x204131, 0x204139, 0x204141, 0x203941, 0x203141, 0x202841,
+	0x2d2d41, 0x312d41, 0x352d41, 0x3d2d41, 0x412d41, 0x412d3d, 0x412d35, 0x412d31,
+	0x412d2d, 0x41312d, 0x41352d, 0x413d2d, 0x41412d, 0x3d412d, 0x35412d, 0x31412d,
+	0x2d412d, 0x2d4131, 0x2d4135, 0x2d413d, 0x2d4141, 0x2d3d41, 0x2d3541, 0x2d3141,
+	0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000
+};
 
 /* macros */
 #define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
@@ -1180,7 +1318,7 @@ static const struct wl_buffer_listener mg__wl_buffer_listener = {
 static struct wl_buffer *
 mg__draw_frame(struct mg__state *mg_state)
 {
-	size_t stride = (size_t)mg_width * 4;
+	size_t stride = (size_t)mg_width * sizeof(uint32_t);
 	size_t size = stride * (size_t)mg_height;
 
 	int fd = mg__allocate_shm_file(size);
@@ -1232,7 +1370,7 @@ mg__xdg_toplevel_configure(void *data, MG_UNUSED struct xdg_toplevel *xdg_toplev
 
 		mg_width = width;
 		mg_height = height;
-		stride = (size_t)mg_width * 4;
+		stride = (size_t)mg_width * sizeof(uint32_t);
 		size = stride * (size_t)mg_height;
 
 		new_draw_buf = malloc(size);
@@ -1301,22 +1439,22 @@ mg__wl_seat_capabilities(void *data, MG_UNUSED struct wl_seat *wl_seat, uint32_t
 
 	int have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
 
-	if (have_pointer && mg_state->wl_pointer == NULL) {
+	if (have_pointer && !mg_state->wl_pointer) {
 		mg_state->wl_pointer = wl_seat_get_pointer(mg_state->wl_seat);
 		wl_pointer_add_listener(mg_state->wl_pointer,
 				&mg__wl_pointer_listener, mg_state);
-	} else if (!have_pointer && mg_state->wl_pointer != NULL) {
+	} else if (!have_pointer && mg_state->wl_pointer) {
 		wl_pointer_release(mg_state->wl_pointer);
 		mg_state->wl_pointer = NULL;
 	}
 
 	have_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
 
-	if (have_keyboard && mg_state->wl_keyboard == NULL) {
+	if (have_keyboard && !mg_state->wl_keyboard) {
 		mg_state->wl_keyboard = wl_seat_get_keyboard(mg_state->wl_seat);
 		wl_keyboard_add_listener(mg_state->wl_keyboard,
 				&mg__wl_keyboard_listener, mg_state);
-	} else if (!have_keyboard && mg_state->wl_keyboard != NULL) {
+	} else if (!have_keyboard && mg_state->wl_keyboard) {
 		wl_keyboard_release(mg_state->wl_keyboard);
 		mg_state->wl_keyboard = NULL;
 	}
@@ -1338,18 +1476,19 @@ mg__registry_global(void *data, struct wl_registry *wl_registry, uint32_t name,
 		const char *interface, MG_UNUSED uint32_t version)
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
-	if (strcmp(interface, wl_shm_interface.name) == 0) {
+	/* remember strcmp returns 0 if the strings are equal */
+	if (!strcmp(interface, wl_shm_interface.name)) {
 		mg_state->wl_shm = wl_registry_bind(
 				wl_registry, name, &wl_shm_interface, 1);
-	} else if (strcmp(interface, wl_compositor_interface.name) == 0) {
+	} else if (!strcmp(interface, wl_compositor_interface.name)) {
 		mg_state->wl_compositor = wl_registry_bind(
 				wl_registry, name, &wl_compositor_interface, 4);
-	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
+	} else if (!strcmp(interface, xdg_wm_base_interface.name)) {
 		mg_state->xdg_wm_base = wl_registry_bind(
 				wl_registry, name, &xdg_wm_base_interface, 1);
 		xdg_wm_base_add_listener(mg_state->xdg_wm_base,
 				&mg__xdg_wm_base_listener, mg_state);
-	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
+	} else if (!strcmp(interface, wl_seat_interface.name)) {
 		mg_state->wl_seat = wl_registry_bind(
 				wl_registry, name, &wl_seat_interface, 7);
 		wl_seat_add_listener(mg_state->wl_seat,
@@ -1383,14 +1522,14 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 	mg_height = h;
 	mg.buf_width = (size_t)mg_width;
 	mg.buf_height = (size_t)mg_height;
-	mg.buf_stride = mg.buf_width * 4;
+	mg.buf_stride = mg.buf_width * sizeof(uint32_t);
 	mg.buf_size = mg.buf_stride * mg.buf_height;
 
 	*mg.err_return = *err_return;
 
 	mg.draw_buf = malloc(mg.buf_size);
 	if (!mg.draw_buf)
-		MG__ERROR(MG_OUT_OF_MEMORY)
+		MG__ERROR(MG_INIT_FAILED)
 	mg_clear();
 
 	mg.pending_quit = 0;
@@ -1423,6 +1562,15 @@ mg_init(int w, int h, const char *title, jmp_buf err_return)
 
 	while (mg.configured < 2)
 		wl_display_dispatch(mg.wl_display);
+}
+
+void
+mg_fullscreen(int enable)
+{
+	if (enable)
+		xdg_toplevel_set_fullscreen(mg.xdg_toplevel, NULL);
+	else
+		xdg_toplevel_unset_fullscreen(mg.xdg_toplevel);
 }
 
 void
@@ -1515,6 +1663,10 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							data[i];
 						break;
+					case MG_PIXEL_FORMAT_256:
+						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
+							mg__256_palette[((uint8_t *)(data))[i]];
+						break;
 					}
 				}
 				++i;
@@ -1550,30 +1702,7 @@ mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
  * This library is available under 2 licenses - choose whichever you prefer.
  *
  * ---------------------------------------------------------------------------
- * ALTERNATIVE A - MIT/X Consortium License
- *
- * Copyright (c) 2025 slightlyeepy
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- *
- * ---------------------------------------------------------------------------
- * ALTERNATIVE B - Unlicense
+ * ALTERNATIVE A - Unlicense
  *
  * This is free and unencumbered software released into the public domain.
  *
@@ -1599,4 +1728,27 @@ mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b)
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * For more information, please refer to <http://unlicense.org/>
+ *
+ * ---------------------------------------------------------------------------
+ * ALTERNATIVE B - MIT/X Consortium License
+ *
+ * Copyright (c) 2025 slightlyeepy
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */

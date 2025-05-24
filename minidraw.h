@@ -21,7 +21,6 @@
  *
  * see the "DOCS" section for the API documentation.
  * see the examples directory for example programs.
- *
  */
 #if !defined(MGD_H)
 #define MGD_H
@@ -36,80 +35,88 @@
  * ===========================================================================
  * DOCS (+ header)
  */
+/* draw buffer struct. */
+struct draw {
+	uint32_t *data;
+	uint32_t width, height;
+#if defined(MG_H)
+	enum mg_pixel_format pixel_format;
+#else
+	int pixel_format;
+#endif /* defined(MG_H) */
+};
 
 /*
- * all of these functions take the buffer to which to draw to (draw), its size
- * (width, height) for bounds-checking purposes, and the pixel with which to
- * draw the shape (pixel).
+ * convenience func to resize the draw buffer without distorting the image.
+ * returns 1 if resizing failed due to out-of-memory, and 0 otherwise.
+ */
+MGD__DEF int mgd_image_resize(struct draw *draw, uint32_t width, uint32_t height);
+
+/*
+ * all of these functions take the buffer to which to draw to ('draw'),
+ * and the pixel with which to draw ('pixel').
  */
 
 /*
- * draw an outline of a circle using the current drawing color,
- * with its middle point being located at (x, y) and its radius being 'r'.
+ * draw an outline of a circle with its middle point being located
+ * at (x, y) and its radius being 'r'.
  */
-MGD__DEF void mgd_drawcircle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, int r);
+MGD__DEF void mgd_drawcircle(const struct draw *draw, uint32_t pixel,
+		int x, int y, int r);
+
+/* draw a line from the point (x1, y1) to the point (x2, y2). */
+MGD__DEF void mgd_drawline(const struct draw *draw, uint32_t pixel,
+		int x1, int y1, int x2, int y2);
+
+/* draw a pixel at the point (x, y). */
+MGD__DEF void mgd_drawpixel(const struct draw *draw, uint32_t pixel,
+		int x, int y);
 
 /*
- * draw a line from the point (x1, y1) to the point (x2, y2) using the
- * current drawing color.
+ * draw an outline of a rectangle with its top-left point being located
+ * at (x1, y1) and its bottom-left point being at (x2, y2).
  */
-MGD__DEF void mgd_drawline(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2);
-
-/* draw a pixel at the point (x, y) using the current drawing color. */
-MGD__DEF void mgd_drawpixel(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y);
+MGD__DEF void mgd_drawrect(const struct draw *draw, uint32_t pixel,
+		int x1, int y1, int x2, int y2);
 
 /*
- * draw an outline of a rectangle using the current drawing color,
- * with its top-left point being located at (x1, y1) and its bottom-left
- * point being at (x2, y2).
+ * draw a string in an 8x8 bitmap font, with the top-left corner of the
+ * first 8x8 character box being at (x, y). the 'size' parameter specifies
+ * the font size, so a 'size' of 2 will draw 16x16 text.
  */
-MGD__DEF void mgd_drawrect(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2);
+MGD__DEF void mgd_drawtext(const struct draw *draw, uint32_t pixel,
+		int x, int y, const char *text, int size);
 
 /*
- * draw a string in an 8x8 bitmap font using the current drawing color,
- * with the top-left corner of the first 8x8 character box being at (x, y).
- * the 'size' parameter specifies the font size, so a 'size' of 2 will draw
- * 16x16 text.
+ * draw an outline of a triangle with its vertices being at the points
+ * (x1, y1), (x2, y2), and (x3, y3).
  */
-MGD__DEF void mgd_drawtext(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, const char *text, int size);
-
-/*
- * draw an outline of a triangle with the current drawing color,
- * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
- */
-MGD__DEF void mgd_drawtriangle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3);
+MGD__DEF void mgd_drawtriangle(const struct draw *draw, uint32_t pixel,
+		int x1, int y1, int x2, int y2, int x3, int y3);
 
 /* fill the whole buffer with a color. */
-MGD__DEF void mgd_fill(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel);
+MGD__DEF void mgd_fill(const struct draw *draw, uint32_t pixel);
 
 /*
- * draw a filled-in circle using the current drawing color,
- * with its middle point being located at (x, y) and its radius being 'r'.
+ * draw a filled-in circle with its middle point being located at (x, y)
+ * and its radius being 'r'.
  */
-MGD__DEF void mgd_fillcircle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, int r);
+MGD__DEF void mgd_fillcircle(const struct draw *draw, uint32_t pixel,
+		int x, int y, int r);
 
 /*
- * draw a filled-in rectangle using the current drawing color,
- * with its top-left point being located at (x1, y1) and its bottom-left
- * point being at (x2, y2).
+ * draw a filled-in rectangle with its top-left point being located at
+ * (x1, y1) and its bottom-left point being at (x2, y2).
  */
-MGD__DEF void mgd_fillrect(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2);
+MGD__DEF void mgd_fillrect(const struct draw *draw, uint32_t pixel,
+		int x1, int y1, int x2, int y2);
 
 /*
- * draw a filled-in triangle with the current drawing color,
- * with its vertices being at the points (x1, y1), (x2, y2), and (x3, y3).
+ * draw a filled-in triangle with its vertices being at the points (x1, y1),
+ * (x2, y2), and (x3, y3).
  */
-MGD__DEF void mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3);
+MGD__DEF void mgd_filltriangle(const struct draw *draw, uint32_t pixel,
+		int x1, int y1, int x2, int y2, int x3, int y3);
 
 /* end of docs/header */
 
@@ -121,10 +128,7 @@ MGD__DEF void mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
  */
 #if defined(MGD_IMPLEMENTATION)
 
-/*
- * ===========================================================================
- * CONSTANTS
- */
+/* constants */
 static const unsigned char mgd__font[95][8] = {
 	/* make sure that (c >= 0x20 && c <= 0x7e) */
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+0020 (space) */
@@ -224,14 +228,25 @@ static const unsigned char mgd__font[95][8] = {
 	{ 0x6E, 0x3B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* U+007E (~) */
 };
 
+/* macros */
 #define MGD__MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MGD__MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MGD__PIXELSET(draw, width, height, pixel, x, y) \
-	if ((x) >= 0 && (y) >= 0 && (x) < (int)width && (y) < (int)height) \
-		draw[(y) * (int)width + (x)] = pixel
-#define MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, x, y) \
-	draw[(y) * (int)width + (x)] = pixel
 
+/* 3 == MG_PIXEL_FORMAT_256 */
+#define MGD__PIXELSET(draw, pixel, x, y) \
+	if ((x) >= 0 && (y) >= 0 && (x) < (int)draw->width && (y) < (int)draw->height) { \
+		if (draw->pixel_format != 3) \
+			draw->data[(y) * (int)draw->width + (x)] = pixel; \
+		else \
+			((uint8_t *)draw->data)[(y) * (int)draw->width + (x)] = (uint8_t)pixel; \
+	}
+#define MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, x, y) \
+	if (draw->pixel_format != 3) \
+		draw->data[(y) * (int)draw->width + (x)] = pixel; \
+	else \
+		((uint8_t *)draw->data)[(y) * (int)draw->width + (x)] = (uint8_t)pixel;
+
+/* internal functions */
 static int
 mgd__clamp(int val, int min, int max)
 {
@@ -243,8 +258,7 @@ mgd__clamp(int val, int min, int max)
 }
 
 static void
-mgd__fillflatsidetriangle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
+mgd__fillflatsidetriangle(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
 {
 	/* points 2 and 3 must be on the same horizontal line (y2 == y3) */
 	int tmp1_x = x1, tmp1_y = y1;
@@ -289,12 +303,12 @@ mgd__fillflatsidetriangle(uint32_t *draw, uint32_t width, uint32_t height,
 	for (; i <= dx1; ++i) {
 		/* mgd_drawline(tmp1_x, tmp1_y, tmp2_x, tmp2_y); */
 
-		if (tmp1_y >= 0 && tmp1_y < (int)height) {
+		if (tmp1_y >= 0 && tmp1_y < (int)draw->height) {
 			/* assuming tmp1_y == tmp2_y */
-			lowx = mgd__clamp(MGD__MIN(tmp1_x, tmp2_x), 0, (int)width - 1);
-			highx = mgd__clamp(MGD__MAX(tmp1_x, tmp2_x), 0, (int)width - 1);
+			lowx = mgd__clamp(MGD__MIN(tmp1_x, tmp2_x), 0, (int)draw->width - 1);
+			highx = mgd__clamp(MGD__MAX(tmp1_x, tmp2_x), 0, (int)draw->width - 1);
 			for (; lowx <= highx; ++lowx)
-				MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, lowx, tmp1_y);
+				MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, lowx, tmp1_y)
 		}
 
 		while (e1 >= 0) {
@@ -360,16 +374,61 @@ mgd__sort_ascending_by_y(int x1, int y1, int x2, int y2, int x3, int y3,
 	*ny3 = y1;
 }
 
+/* public functions */
+int
+mgd_image_resize(struct draw *draw, uint32_t width, uint32_t height)
+{
+	/* 3 == MG_PIXEL_FORMAT_256 */
+	uint32_t *newdata;
+	size_t roff = 0, woff = 0;
+	size_t stride;
+	size_t i = 0;
+	if (draw->pixel_format != 3) {
+		newdata = calloc(width * height, sizeof(uint32_t));
+		stride = MGD__MIN(draw->width * sizeof(uint32_t), width * sizeof(uint32_t));
+
+		if (!newdata)
+			return 1;
+
+		for (; i < MGD__MIN(draw->height, height) &&
+				(roff < draw->width * draw->height) &&
+				(woff < width * height); ++i) {
+			memcpy(newdata + woff, draw->data + roff, stride);
+			roff += draw->width;
+			woff += width;
+		}
+	} else {
+		uint8_t *p = malloc(width * height);
+		stride = MGD__MIN(draw->width, width);
+
+		if (!p)
+			return 1;
+
+		for (; i < MGD__MIN(draw->height, height) &&
+				(roff < draw->width * draw->height) &&
+				(woff < width * height); ++i) {
+			memcpy(p + woff, draw->data + roff, stride);
+			roff += draw->width;
+			woff += width;
+		}
+		newdata = (uint32_t *)p;
+	}
+	free(draw->data);
+	draw->data = newdata;
+	draw->width = width;
+	draw->height = height;
+	return 0;
+}
+
 void
-mgd_drawcircle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, int r)
+mgd_drawcircle(const struct draw *draw, uint32_t pixel, int x, int y, int r)
 {
 	int dx = -r, dy = 0, err = 2 - 2 * r;
 	do {
-		MGD__PIXELSET(draw, width, height, pixel, x - dx, y + dy);
-		MGD__PIXELSET(draw, width, height, pixel, x - dy, y - dx);
-		MGD__PIXELSET(draw, width, height, pixel, x + dx, y - dy);
-		MGD__PIXELSET(draw, width, height, pixel, x + dy, y + dx);
+		MGD__PIXELSET(draw, pixel, x - dx, y + dy)
+		MGD__PIXELSET(draw, pixel, x - dy, y - dx)
+		MGD__PIXELSET(draw, pixel, x + dx, y - dy)
+		MGD__PIXELSET(draw, pixel, x + dy, y + dx)
 
 		r = err;
 		if (r <= dy)
@@ -380,30 +439,29 @@ mgd_drawcircle(uint32_t *draw, uint32_t width, uint32_t height,
 }
 
 void
-mgd_drawline(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2)
+mgd_drawline(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2)
 {
-	x1 = mgd__clamp(x1, 0, (int)width - 1);
-	y1 = mgd__clamp(y1, 0, (int)height - 1);
-	x2 = mgd__clamp(x2, 0, (int)width - 1);
-	y2 = mgd__clamp(y2, 0, (int)height - 1);
+	x1 = mgd__clamp(x1, 0, (int)draw->width - 1);
+	y1 = mgd__clamp(y1, 0, (int)draw->height - 1);
+	x2 = mgd__clamp(x2, 0, (int)draw->width - 1);
+	y2 = mgd__clamp(y2, 0, (int)draw->height - 1);
 	if (x1 == x2) {
 		int lowy = MGD__MIN(y1, y2);
 		int highy = MGD__MAX(y1, y2);
 		for (; lowy <= highy; ++lowy)
-			MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, x1, lowy);
+			MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, x1, lowy)
 	} else if (y1 == y2) {
 		int lowx = MGD__MIN(x1, x2);
 		int highx = MGD__MAX(x1, x2);
 		for (; lowx <= highx; ++lowx)
-			MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, lowx, y1);
+			MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, lowx, y1)
 	} else {
 		int dx = abs(x2 - x1), sx = (x1 < x2) ? 1 : -1;
 		int dy = -abs(y2 - y1), sy = (y1 < y2) ? 1 : -1;
 		int err = dx + dy, e2;
 
 		for (;;) {
-			MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, x1, y1);
+			MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, x1, y1)
 			if (x1 == x2 && y1 == y2)
 				break;
 			e2 = err * 2;
@@ -420,32 +478,29 @@ mgd_drawline(uint32_t *draw, uint32_t width, uint32_t height,
 }
 
 void
-mgd_drawpixel(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y)
+mgd_drawpixel(const struct draw *draw, uint32_t pixel, int x, int y)
 {
-	MGD__PIXELSET(draw, width, height, pixel, x, y);
+	MGD__PIXELSET(draw, pixel, x, y)
 }
 
 void
-mgd_drawrect(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2)
+mgd_drawrect(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2)
 {
-	mgd_drawline(draw, width, height, pixel, x1, y1, x2, y1); /* top */
-	mgd_drawline(draw, width, height, pixel, x2, y1, x2, y2); /* right */
-	mgd_drawline(draw, width, height, pixel, x1, y2, x2, y2); /* bottom */
-	mgd_drawline(draw, width, height, pixel, x1, y1, x1, y2); /* left */
+	mgd_drawline(draw, pixel, x1, y1, x2, y1); /* top */
+	mgd_drawline(draw, pixel, x2, y1, x2, y2); /* right */
+	mgd_drawline(draw, pixel, x1, y2, x2, y2); /* bottom */
+	mgd_drawline(draw, pixel, x1, y1, x1, y2); /* left */
 }
 
 void
-mgd_drawtext(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, const char *text, int size)
+mgd_drawtext(const struct draw *draw, uint32_t pixel, int x, int y, const char *text, int size)
 {
 	if (size < 1) {
 		return;
 	} else {
 		size_t i = 0;
 		int px, py; /* point x, point y */
-		int dx = x; /* draw x */
+		int dx = x; /* draw->data x */
 
 		for (; i < strlen(text); ++i) {
 			for (py = 0; py < 8; ++py) {
@@ -455,10 +510,10 @@ mgd_drawtext(uint32_t *draw, uint32_t width, uint32_t height,
 						int tmpx = dx + (px * size);
 						int tmpy = y + (py * size);
 						if (size > 1)
-							mgd_fillrect(draw, width, height, pixel, tmpx, tmpy,
+							mgd_fillrect(draw, pixel, tmpx, tmpy,
 									tmpx + size - 1, tmpy + size - 1);
 						else
-							MGD__PIXELSET(draw, width, height, pixel, tmpx, tmpy);
+							MGD__PIXELSET(draw, pixel, tmpx, tmpy)
 					}
 				}
 			}
@@ -468,52 +523,53 @@ mgd_drawtext(uint32_t *draw, uint32_t width, uint32_t height,
 }
 
 void
-mgd_drawtriangle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
+mgd_drawtriangle(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
 {
-	mgd_drawline(draw, width, height, pixel, x1, y1, x2, y2);
-	mgd_drawline(draw, width, height, pixel, x2, y2, x3, y3);
-	mgd_drawline(draw, width, height, pixel, x3, y3, x1, y1);
+	mgd_drawline(draw, pixel, x1, y1, x2, y2);
+	mgd_drawline(draw, pixel, x2, y2, x3, y3);
+	mgd_drawline(draw, pixel, x3, y3, x1, y1);
 }
 
 void
-mgd_fill(uint32_t *draw, uint32_t width, uint32_t height, uint32_t pixel)
+mgd_fill(const struct draw *draw, uint32_t pixel)
 {
 	size_t i = 0;
-	for (; i < width * height; ++i)
-		draw[i] = pixel;
+	/* 3 == MG_PIXEL_FORMAT_256 */
+	for (; i < draw->width * draw->height; ++i) {
+		if (draw->pixel_format != 3)
+			draw->data[i] = pixel;
+		else
+			((uint8_t *)draw->data)[i] = (uint8_t)pixel;
+	}
 }
 
 void
-mgd_fillcircle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x, int y, int r)
+mgd_fillcircle(const struct draw *draw, uint32_t pixel, int x, int y, int r)
 {
 	/* TODO: this is really bad.... */
 	int dx, dy = -r;
 	for (; dy <= r; ++dy)
 		for (dx = -r; dx <= r; ++dx)
 			if (dx * dx + dy * dy < r * r + r)
-				MGD__PIXELSET(draw, width, height, pixel, dx + x, dy + y);
+				MGD__PIXELSET(draw, pixel, dx + x, dy + y)
 }
 
 void
-mgd_fillrect(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2)
+mgd_fillrect(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2)
 {
 	int x;
-	int lowx = mgd__clamp(MGD__MIN(x1, x2), 0, (int)width - 1);
-	int highx = mgd__clamp(MGD__MAX(x1, x2), 0, (int)width - 1);
-	int lowy = mgd__clamp(MGD__MIN(y1, y2), 0, (int)height - 1);
-	int highy = mgd__clamp(MGD__MAX(y1, y2), 0, (int)height - 1);
+	int lowx = mgd__clamp(MGD__MIN(x1, x2), 0, (int)draw->width - 1);
+	int highx = mgd__clamp(MGD__MAX(x1, x2), 0, (int)draw->width - 1);
+	int lowy = mgd__clamp(MGD__MIN(y1, y2), 0, (int)draw->height - 1);
+	int highy = mgd__clamp(MGD__MAX(y1, y2), 0, (int)draw->height - 1);
 
 	for (; lowy <= highy; ++lowy)
 		for (x = lowx; x <= highx; ++x)
-			MGD__PIXELSET_NOBOUNDSCHECK(draw, width, height, pixel, x, lowy);
+			MGD__PIXELSET_NOBOUNDSCHECK(draw, pixel, x, lowy)
 }
 
 void
-mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
-		uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
+mgd_filltriangle(const struct draw *draw, uint32_t pixel, int x1, int y1, int x2, int y2, int x3, int y3)
 {
 	/*
 	 * see http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
@@ -525,15 +581,15 @@ mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
 
 	if (ny2 == ny3) {
 		/* bottom-flat triangle */
-		mgd__fillflatsidetriangle(draw, width, height, pixel, nx1, ny1, nx2, ny2, nx3, ny3);
+		mgd__fillflatsidetriangle(draw, pixel, nx1, ny1, nx2, ny2, nx3, ny3);
 	} else if (ny1 == ny2) {
 		/* top-flat triangle */
-		mgd__fillflatsidetriangle(draw, width, height, pixel, nx3, ny3, nx1, ny1, nx2, ny2);
+		mgd__fillflatsidetriangle(draw, pixel, nx3, ny3, nx1, ny1, nx2, ny2);
 	} else {
 		/* split triangle into top-flat && bottom-flat */
 		int tmp = (int)((float)nx1 + ((float)(ny2 - ny1) / (float)(ny3 - ny1)) * (float)(nx3 - nx1));
-		mgd__fillflatsidetriangle(draw, width, height, pixel, nx1, ny1, nx2, ny2, tmp, ny2);
-		mgd__fillflatsidetriangle(draw, width, height, pixel, nx3, ny3, nx2, ny2, tmp, ny2);
+		mgd__fillflatsidetriangle(draw, pixel, nx1, ny1, nx2, ny2, tmp, ny2);
+		mgd__fillflatsidetriangle(draw, pixel, nx3, ny3, nx2, ny2, tmp, ny2);
 	}
 }
 
@@ -543,30 +599,7 @@ mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
  * This library is available under 2 licenses - choose whichever you prefer.
  *
  * ---------------------------------------------------------------------------
- * ALTERNATIVE A - MIT/X Consortium License
- *
- * Copyright (c) 2025 slightlyeepy
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- *
- * ---------------------------------------------------------------------------
- * ALTERNATIVE B - Unlicense
+ * ALTERNATIVE A - Unlicense
  *
  * This is free and unencumbered software released into the public domain.
  *
@@ -592,4 +625,27 @@ mgd_filltriangle(uint32_t *draw, uint32_t width, uint32_t height,
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * For more information, please refer to <http://unlicense.org/>
+ *
+ * ---------------------------------------------------------------------------
+ * ALTERNATIVE B - MIT/X Consortium License
+ *
+ * Copyright (c) 2025 slightlyeepy
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */

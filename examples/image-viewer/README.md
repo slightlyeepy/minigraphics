@@ -2,6 +2,8 @@ a very simple [farbfeld](https://tools.suckless.org/farbfeld/) image viewer.
 
 note: there are literally no features besides displaying the image (even zooming in/out), so you probably shouldn't use this as an actual image viewer, it's just a little demo
 
+press F to toggle fullscreen
+
 supported formats:
 - farbfeld (normal, bzip2, gzip, xz)
 - PNG
