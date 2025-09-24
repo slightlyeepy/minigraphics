@@ -11,13 +11,29 @@ an [additional utility library](minidraw.h) exists for:
 
 # usage
 
-install with [clib](https://github.com/clibs/clib):
+drop [minigraphics.h](minigraphics.h) and/or [minidraw.h](minidraw.h) inside your project.
+
+if you don't like the single-header format, you can create a file `minigraphics.c` with the contents:
+```c
+#define MG_IMPLEMENTATION
+#include "minigraphics.h"
+```
+and use `minigraphics.c` and `minigraphics.h` as a standard source file / header pair.
+
+you can also install it with [clib](https://github.com/clibs/clib):
 
 ```sh
 clib install slightlyeepy/minigraphics
 ```
 
-or just drop [minigraphics.h](minigraphics.h) and/or [minidraw.h](minidraw.h) inside your project.
+you won't need any code modifications for different backends, however you'll need some build system setup.
+
+- for X11: define the macro `MG_BACKEND_X11` in your build system, and link with `-lX11`
+- for Wayland: define `MG_BACKEND_WAYLAND`, link with `-lrt -lwayland-client -lxkbcommon`, add `xdg-shell-protocol.c` to your sources, and have `xdg-shell-client-protocol.h` in your include paths.
+    - you can generate the `xdg-shell-*` files with `wayland-scanner private-code < xdg-shell.xml > xdg-shell-protocol.c` and `wayland-scanner client-header < xdg-shell.xml > xdg-shell-client-protocol.h`.
+    - `xdg-shell.xml` is usually provided by a package named `wayland-protocols` or something of the like. on my system it's located at `/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml`.
+
+see the makefiles in [examples](examples) for an example.
 
 # license
 
@@ -53,6 +69,6 @@ Wayland only:
 
 # todo
 
+- ditch minidraw - plenty of other libraries exist that provide similar functionality, such as [olive.c](https://github.com/tsoding/olive.c)
 - support more features like unresizable windows, etc.
-- linux framebuffer backend
-- windows GDI backend (maybe?)
+- more backends. the two i'm currently looking at are linux framebuffer and UEFI GOP. a windows GDI backend would be very useful but gahh i really don't wanna deal with windows

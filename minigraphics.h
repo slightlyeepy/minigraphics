@@ -254,7 +254,7 @@ MG__DEF void mg_clear(void);
  *
  * the top-left corner of the drawn image will be at (x, y).
  */
-MG__DEF void mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+MG__DEF void mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		enum mg_pixel_format pixel_format, int x, int y);
 
 /*
@@ -681,7 +681,7 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		enum mg_pixel_format pixel_format, int x, int y)
 {
 	XImage *ximage;
@@ -711,7 +711,7 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 	if (!ximage->data)
 		MG__ERROR(MG_OUT_OF_MEMORY)
 
-	for (; i < width * height; ++i) {
+	for (; i < width * height; i++) {
 		/* X seems to use BGRX for images, so convert our image to that */
 		switch (pixel_format) {
 		case MG_PIXEL_FORMAT_RGBX:
@@ -938,7 +938,7 @@ static void
 mg__clear_buf(uint32_t *buf, size_t w, size_t h)
 {
 	size_t i = 0;
-	for (; i < w * h; ++i)
+	for (; i < w * h; i++)
 		buf[i] = mg.bgcolor;
 }
 
@@ -951,7 +951,7 @@ mg__frametrimcpy(uint32_t *dst, const uint32_t *src, size_t oldwidth, size_t new
 	size_t i = 0;
 	for (; i < MG__MIN(oldheight, newheight) &&
 			(roff < oldwidth * oldheight) &&
-			(woff < newwidth * newheight); ++i) {
+			(woff < newwidth * newheight); i++) {
 		memcpy(dst + woff, src + roff, stride);
 		roff += oldwidth;
 		woff += newwidth;
@@ -1010,7 +1010,7 @@ mg__randname(char *buf)
 	int i = 0;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	r = ts.tv_nsec;
-	for (; i < 6; ++i) {
+	for (; i < 6; i++) {
 		buf[i] = (char)('A'+(r&15)+(r&16)*2);
 		r >>= 5;
 	}
@@ -1409,7 +1409,7 @@ mg__xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t 
 {
 	struct mg__state *mg_state = (struct mg__state *)data;
 	struct wl_buffer *buffer;
-	++mg_state->configured;
+	mg_state->configured++;
 	xdg_surface_ack_configure(xdg_surface, serial);
 
 	buffer = mg__draw_frame(mg_state);
@@ -1637,14 +1637,14 @@ mg_clear(void)
 }
 
 void
-mg_draw(uint32_t *data, uint32_t width, uint32_t height,
+mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		enum mg_pixel_format pixel_format, int x, int y)
 {
 	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
 		size_t i = 0; /* position in image buffer */
 		int dx, dy = 0; /* x offset / y offset to draw at */
-		for (; dy < (int)height; ++dy) {
-			for (dx = 0; dx < (int)width; ++dx) {
+		for (; dy < (int)height; dy++) {
+			for (dx = 0; dx < (int)width; dx++) {
 				if ((dx + x) >= 0 && (dy + y) >= 0 && (dx + x) < (int)mg.buf_width &&
 						(dy + y) < (int)mg.buf_height) {
 					/* remember we're using XRGB */
@@ -1669,7 +1669,7 @@ mg_draw(uint32_t *data, uint32_t width, uint32_t height,
 						break;
 					}
 				}
-				++i;
+				i++;
 			}
 		}
 	}
