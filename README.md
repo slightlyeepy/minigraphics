@@ -53,10 +53,12 @@ Wayland only:
 
 # non-goals
 
-- high performance / usage in places where performance is highly important
+- fancier drawing features
 - hardware acceleration, etc.
 
 # todo
 
+- some equivalent to `SDL_Delay`, right now there isn't a good way to sleep without freezing the entire process
 - support more features like unresizable windows, etc.
 - more backends. the two i'm currently looking at are linux framebuffer and UEFI GOP. a windows GDI backend would be very useful but gahh i really don't wanna deal with windows
+- initially performance wasn't a goal, but maybe DO think about performance? the premise of the library is very simple and it'd suck if something like this was unusable as a little "display stuff on the screen" backend purely because of performance issues
