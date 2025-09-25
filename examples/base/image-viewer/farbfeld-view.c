@@ -5,6 +5,7 @@
 #include <math.h>
 #include <setjmp.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,7 +87,7 @@ main(int argc, char *argv[])
 	uint32_t *img_data;
 	uint32_t img_width, img_height;
 	jmp_buf env;
-	int fullscreen;
+	bool fullscreen;
 
 	argv0 = argv[0];
 
@@ -111,8 +112,8 @@ main(int argc, char *argv[])
 		die("mg error: %s", mg_strerror(mg_errno));
 
 	/* create a window of the same size as the image */
-	mg_init((int)img_width, (int)img_height, "image viewer", env);
-	fullscreen = 0;
+	mg_init(img_width, img_height, "farbfeld-view.c", env);
+	fullscreen = false;
 
 	/* display image */
 	mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);

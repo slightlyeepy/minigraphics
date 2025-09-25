@@ -1,5 +1,6 @@
 /* See UNLICENSE file for copyright and license details. */
 #include <setjmp.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -41,7 +42,7 @@ main(void)
 {
 	struct mg_event event;
 	jmp_buf env;
-	int cont = 1;
+	bool cont = true;
 
 	/* if a library error happens, a longjmp() to here will happen. */
 	if (setjmp(env)) {
@@ -50,14 +51,14 @@ main(void)
 	}
 
 	/* create a 640x480 window */
-	mg_init(640, 480, "events", env);
+	mg_init(640, 480, "events.c", env);
 
 	while (cont) {
 		mg_waitevent(&event);
 		switch (event.type) {
 		case MG_QUIT:
 			puts("recieved event: MG_QUIT");
-			cont = 0;
+			cont = false;
 			break;
 		case MG_RESIZE:
 			printf("recieved event: MG_RESIZE:      width = %d, height = %d\n", mg_width, mg_height);

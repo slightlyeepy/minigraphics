@@ -2,22 +2,23 @@
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #define MG_IMPLEMENTATION
-#include "../../minigraphics.h"
+#include "minigraphics.h"
 
 #define WIDTH 640
 #define HEIGHT 480
 
-#define CUBE_WIDTH 40.0f
+#define CUBE_WIDTH 40.0
 
 #define DISTANCE_FROM_CAM 100
-#define HORIZONTAL_OFFSET -40.0f
-#define K1 40.0f
+#define HORIZONTAL_OFFSET -40.0
+#define K1 40.0
 
-#define INCREMENT 0.5f
+#define INCREMENT 0.5
 
 #define BLACK  0
 #define RED    12
@@ -27,61 +28,56 @@
 #define CYAN   11
 #define WHITE  15
 
-static int
+static void
 msleep(long ms)
 {
 	/* sleep for ms milliseconds. */
-	struct timespec ts;
+	struct timespec tp;
 	int ret;
 
-	if (ms < 0) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	ts.tv_sec = ms / 1000;
-	ts.tv_nsec = (ms % 1000) * 1000000;
+	tp.tv_sec = ms / 1000;
+	tp.tv_nsec = (ms % 1000) * 1000000;
 
 	do {
-		ret = nanosleep(&ts, &ts);
+		ret = nanosleep(&tp, &tp);
 	} while (ret && errno == EINTR);
 
-	return ret;
+	/* don't error-check any further -- nanosleep() can only fail on signal interruption or invalid argument */
 }
 
-static inline float
-calculate_x(float x, float y, float z, float a, float b, float c)
+static inline double
+calculate_x(double x, double y, double z, double a, double b, double c)
 {
-	return y * sinf(a) * sinf(b) * cosf(c) - z * cosf(a) * sinf(b) * cosf(c) +
-		y * cosf(a) * sinf(c) + z * sinf(a) * sinf(c) + x * cosf(b) * cosf(c);
+	return y * sin(a) * sin(b) * cos(c) - z * cos(a) * sin(b) * cos(c) +
+		y * cos(a) * sin(c) + z * sin(a) * sin(c) + x * cos(b) * cos(c);
 }
 
-static inline float
-calculate_y(float x, float y, float z, float a, float b, float c)
+static inline double
+calculate_y(double x, double y, double z, double a, double b, double c)
 {
-	return y * cosf(a) * cosf(c) + z * sinf(a) * cosf(c) -
-		y * sinf(a) * sinf(b) * sinf(c) + z * cosf(a) * sinf(b) * sinf(c) -
-		x * cosf(b) * sinf(c);
+	return y * cos(a) * cos(c) + z * sin(a) * cos(c) -
+		y * sin(a) * sin(b) * sin(c) + z * cos(a) * sin(b) * sin(c) -
+		x * cos(b) * sin(c);
 }
 
-static inline float
-calculate_z(float x, float y, float z, float a, float b)
+static inline double
+calculate_z(double x, double y, double z, double a, double b)
 {
-	return z * cosf(a) * cosf(b) - y * sinf(a) * cosf(b) + x * sinf(b);
+	return z * cos(a) * cos(b) - y * sin(a) * cos(b) + x * sin(b);
 }
 
 static void
-calculate_for_surface(float cube_x, float cube_y, float cube_z, float a, float b, float c,
-		float *z_buf, uint8_t *draw, uint8_t color)
+calculate_for_surface(double cube_x, double cube_y, double cube_z, double a, double b, double c,
+		double *z_buf, uint8_t *draw, uint8_t color)
 {
-	float x = calculate_x(cube_x, cube_y, cube_z, a, b, c);
-	float y = calculate_y(cube_x, cube_y, cube_z, a, b, c);
-	float z = calculate_z(cube_x, cube_y, cube_z, a, b) + DISTANCE_FROM_CAM;
+	double x = calculate_x(cube_x, cube_y, cube_z, a, b, c);
+	double y = calculate_y(cube_x, cube_y, cube_z, a, b, c);
+	double z = calculate_z(cube_x, cube_y, cube_z, a, b) + DISTANCE_FROM_CAM;
 
-	float ooz = 1 / z;
+	double ooz = 1 / z;
 
-	int xp = (int)(WIDTH / 2 + HORIZONTAL_OFFSET + K1 * ooz * x * 2);
-	int yp = (int)(HEIGHT / 2 + K1 * ooz * y);
+	int xp = WIDTH / 2 + HORIZONTAL_OFFSET + K1 * ooz * x * 2;
+	int yp = HEIGHT / 2 + K1 * ooz * y;
 
 	int idx = xp + yp * WIDTH;
 	if (idx >= 0 && idx < WIDTH * HEIGHT) {
@@ -98,9 +94,9 @@ main(void)
 	struct mg_event event;
 	jmp_buf env;
 
-	float cube_x, cube_y;
-	float a, b, c;
-	float *z_buf;
+	double cube_x, cube_y;
+	double a, b, c;
+	double *z_buf;
 	uint8_t *draw;
 
 	if (setjmp(env)) {
@@ -109,8 +105,8 @@ main(void)
 	}
 
 	/* initialize variables here to avoid gcc warnings */
-	a = b = c = 0.0f;
-	z_buf = malloc(WIDTH * HEIGHT * sizeof(float));
+	a = b = c = 0.0;
+	z_buf = malloc(WIDTH * HEIGHT * sizeof(double));
 	if (!z_buf) {
 		fputs("malloc: out of memory\n", stderr);
 		return 1;
@@ -118,19 +114,18 @@ main(void)
 
 	draw = malloc(WIDTH * HEIGHT);
 	if (!draw) {
-		free(z_buf);
 		fputs("malloc: out of memory\n", stderr);
 		return 1;
 	}
 
-	mg_init(WIDTH, HEIGHT, "cube", env);
+	mg_init(WIDTH, HEIGHT, "spinning-cube.c", env);
 
 	for (;;) {
 		if (mg_getevent(&event) && event.type == MG_QUIT)
 			break;
 
 		memset(draw, WHITE, WIDTH * HEIGHT);
-		memset(z_buf, 0, WIDTH * HEIGHT * sizeof(float));
+		memset(z_buf, 0, WIDTH * HEIGHT * sizeof(double));
 
 		for (cube_x = -CUBE_WIDTH; cube_x < CUBE_WIDTH; cube_x += INCREMENT) {
 			for (cube_y = -CUBE_WIDTH; cube_y < CUBE_WIDTH; cube_y += INCREMENT) {
@@ -152,9 +147,9 @@ main(void)
 		mg_draw((uint32_t *)draw, WIDTH, HEIGHT, MG_PIXEL_FORMAT_256, 0, 0);
 		mg_flush();
 
-		a += 0.05f;
-		b += 0.05f;
-		c += 0.01f;
+		a += 0.05;
+		b += 0.05;
+		c += 0.01;
 		msleep(20);
 	}
 	free(draw);

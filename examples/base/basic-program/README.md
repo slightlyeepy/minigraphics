@@ -1,4 +1,4 @@
-an example program to draw some text saying "hello world".
+an example program to draw a black square on a white background.
 
 uses the `MG_PIXEL_FORMAT_256` pixel format as an example.
 
@@ -11,8 +11,8 @@ make wayland # compiles Wayland version only
 
 and run it with one of the following:
 ```
-./hello-world-x11     # run X11 version
-./hello-world-wayland # run Wayland version
+./basic-program-x11     # run X11 version
+./basic-program-wayland # run Wayland version
 ```
 
 run `make clean` to remove the binaries and Wayland protocol files.

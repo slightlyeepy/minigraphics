@@ -41,16 +41,18 @@
  *
  * X11
  * --------------------------
- * no extra stuff is needed.
+ * link with -lX11.
  *
  * example compiler command:
  * cc -lX11 -DMG_BACKEND_X11 -o program program.c
  *
  * WAYLAND
  * --------------------------
- * you'll need the header "xdg-shell-client-protocol.h" in the same directory
- * as this header (or in your include paths), AND you'll need to add
- * "xdg-shell-protocol.c" to your sources.
+ * link with -lrt -lwayland-client -lxkbcommon.
+ *
+ * additionally,
+ * you'll need the header xdg-shell-client-protocol.h in your include paths,
+ * AND you'll need to add xdg-shell-protocol.c to your sources.
  *
  * to generate these files, make sure you have wayland-protocols and
  * wayland-scanner (typically provided by a package named 'wayland' or
@@ -64,6 +66,8 @@
  * 		< /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
  * 		> xdg-shell-client-protocol.h
  *
+ * note that xdg-shell.xml may be located somewhere else on your system.
+ *
  * example compiler command:
  * cc -lrt -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND -I. \
  * 		-o program xdg-shell-protocol.c program.c
@@ -74,14 +78,6 @@
 #include <stdint.h>
 
 #include <xkbcommon/xkbcommon-keysyms.h>
-
-#if !defined(MG_BACKEND_X11) && !defined(MG_BACKEND_WAYLAND)
-#error please define a backend for minigraphics.
-#elif defined(MG_BACKEND_X11) && defined(MG_BACKEND_WAYLAND)
-#error only one backend may be defined.
-#elif defined(MG_BACKEND_X11)
-#include <X11/Xlib.h>
-#endif
 
 #if defined(MG_STATIC)
 #define MG__DEF static
@@ -128,7 +124,7 @@ extern enum mg_error mg_errno;
 enum mg_event_type {
 	MG_NOEVENT,     /* used internally, never reported */
 	MG_QUIT,        /* user has requested to close the window */
-	MG_RESIZE,      /* window has been resized */
+	MG_RESIZE,      /* window has been resized (& should be redrawn) */
 	MG_REDRAW,      /* window should be redrawn */
 	MG_KEYDOWN,     /* a key on the keyboard has been pressed */
 	MG_KEYUP,       /* a key on the keyboard has been unpressed */
@@ -144,12 +140,17 @@ enum mg_mouse_btn {
 	MG_MOUSE_RIGHT,
 	MG_MOUSE_SIDE,
 	MG_MOUSE_EXTRA
+	/*
+	 * note -- mouse buttons past 5 aren't really standardized, so there
+	 * isn't a good consistent way to support more
+	 */
 };
-/* available pixel formats for images are: */
+/* available pixel formats are: */
 enum mg_pixel_format {
 	MG_PIXEL_FORMAT_RGBX, /* RGBA with A component ignored, 4 bytes per pixel */
 	MG_PIXEL_FORMAT_BGRX, /* BGRA with A component ignored, 4 bytes per pixel */
 	MG_PIXEL_FORMAT_XRGB, /* ARGB with A component ignored, 4 bytes per pixel */
+	MG_PIXEL_FORMAT_XBGR, /* ABGR with A component ignored, 4 bytes per pixel */
 	MG_PIXEL_FORMAT_256   /* mode 13h color palette, 1 byte per pixel */
 };
 /*
@@ -221,8 +222,7 @@ MG__DEF void mg_quit(void);
 MG__DEF int mg_getevent(struct mg_event *event);
 MG__DEF void mg_waitevent(struct mg_event *event);
 /*
- * 'event' must be a valid pointer to a mg_event structure; the event
- * data will be stored inside this structure.
+ * the event data will be stored inside the struct pointed to by 'event'.
  *
  * mg_getevent returns instantly -- if no events are currently pending,
  * 0 is returned; otherwise, 1 is returned.
@@ -241,18 +241,22 @@ MG__DEF void mg_clear(void);
  * draw the contents of the memory buffer 'data'. the pixel format is
  * determined by 'pixel_format'. each value represents 1 pixel.
  *
- * for 1 byte-per-pixel pixel formats, 'data' will be casted to a
+ * for 1 byte-per-pixel pixel formats, 'data' will internally be cast to a
  * (uint8_t *). thus, if you want to use a 1 byte-per-pixel pixel format,
  * it is recommended to use a (uint8_t *) and pass it as the 'data' parameter.
+ * note that you may have to cast it to (uint32_t *) in this case.
  *
- * 'width' and 'height' specify the image's width and height in pixels.
+ * 'width' and 'height' specify the buffer's width and height in PIXELS.
  *
- * if 'width' does not match image's width or 'height' is larger than
- * the image's height, the behavior is undefined.
+ * if 'width' is larger than buffer's width or 'height' is larger than
+ * the buffer's height, the behavior is undefined. if 'width' is smaller
+ * than the buffer's width, it'll just result in a messed up looking result. if
+ * 'height' is smaller than the buffer's height, it'll work as you'd expect --
+ * the resulting image will be cropped.
  *
  * if either 'width' or 'height' are zero, nothing is drawn.
  *
- * the top-left corner of the drawn image will be at (x, y).
+ * the top-left corner of the drawn buffer will be at (x, y).
  */
 MG__DEF void mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		enum mg_pixel_format pixel_format, int x, int y);
@@ -280,6 +284,12 @@ MG__DEF void mg_setbgcolor(uint8_t r, uint8_t g, uint8_t b);
  */
 #if defined(MG_IMPLEMENTATION)
 
+#if !defined(MG_BACKEND_X11) && !defined(MG_BACKEND_WAYLAND)
+#error please define a backend for minigraphics.
+#elif defined(MG_BACKEND_X11) && defined(MG_BACKEND_WAYLAND)
+#error only one backend may be defined.
+#endif
+
 /*
  * ===========================================================================
  * CONSTANTS
@@ -299,7 +309,7 @@ static const char *mg__strerrors[] = {
 #include <stdlib.h>
 #include <string.h>
 
-/* #include <X11/Xlib.h> (already included in the header) */
+#include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
@@ -712,7 +722,7 @@ mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		MG__ERROR(MG_OUT_OF_MEMORY)
 
 	for (; i < width * height; i++) {
-		/* X seems to use BGRX for images, so convert our image to that */
+		/* X seems to use BGRX, so convert our buffer to that */
 		switch (pixel_format) {
 		case MG_PIXEL_FORMAT_RGBX:
 			ximage->data[j] =     (char)((data[i] & 0x0000ff00) >> 8);
@@ -725,9 +735,14 @@ mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 			ximage->data[j + 2] = (char)((data[i] & 0x0000ff00) >> 8);
 			break;
 		case MG_PIXEL_FORMAT_XRGB:
-			ximage->data[j] =     (char)(data[i] & 0x000000ff);
+			ximage->data[j] =     (char)( data[i] & 0x000000ff);
 			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 8);
 			ximage->data[j + 2] = (char)((data[i] & 0x00ff0000) >> 16);
+			break;
+		case MG_PIXEL_FORMAT_XBGR:
+			ximage->data[j] =     (char)((data[i] & 0x00ff0000) >> 24);
+			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 16);
+			ximage->data[j + 2] = (char)((data[i] & 0x000000ff) >> 8);
 			break;
 		case MG_PIXEL_FORMAT_256:
 			{
@@ -1005,11 +1020,11 @@ static void
 mg__randname(char *buf)
 {
 	/* generate a (pretty bad) random filename. */
-	struct timespec ts;
+	struct timespec tp;
 	long r;
 	int i = 0;
-	clock_gettime(CLOCK_REALTIME, &ts);
-	r = ts.tv_nsec;
+	clock_gettime(CLOCK_REALTIME, &tp);
+	r = tp.tv_nsec;
 	for (; i < 6; i++) {
 		buf[i] = (char)('A'+(r&15)+(r&16)*2);
 		r >>= 5;
@@ -1641,7 +1656,7 @@ mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 		enum mg_pixel_format pixel_format, int x, int y)
 {
 	if (x < (int)mg.buf_width && y < (int)mg.buf_height) {
-		size_t i = 0; /* position in image buffer */
+		size_t i = 0; /* position in buffer */
 		int dx, dy = 0; /* x offset / y offset to draw at */
 		for (; dy < (int)height; dy++) {
 			for (dx = 0; dx < (int)width; dx++) {
@@ -1662,6 +1677,12 @@ mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 					case MG_PIXEL_FORMAT_XRGB:
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
 							data[i];
+						break;
+					case MG_PIXEL_FORMAT_XBGR:
+						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
+							((data[i] & 0x00ff0000) >> 16) |
+							( data[i] & 0x0000ff00) |
+							((data[i] & 0x000000ff) << 16);
 						break;
 					case MG_PIXEL_FORMAT_256:
 						mg.draw_buf[(dy + y) * (int)mg.buf_width + (dx + x)] =
