@@ -104,7 +104,7 @@ main(void)
 
 	/* if a library error happens, a longjmp() to here will happen. */
 	if (setjmp(env)) {
-		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
+		fprintf(stderr, "mg error: %s\n", mg_errstring());
 		return 1;
 	}
 

@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 
 	/* if a library error happens, a longjmp() to here will happen. */
 	if (setjmp(env))
-		die("mg error: %s", mg_strerror(mg_errno));
+		die("mg error: %s", mg_errstring());
 
 	/* create a window of the same size as the image */
 	mg_init(img_width, img_height, "farbfeld-view.c", env);

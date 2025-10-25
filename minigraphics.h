@@ -1,5 +1,7 @@
 /*
  * minigraphics in-development (versioned releases will come later)
+ * NOTE: until versioned releases come, breaking API changes may happen
+ * at any time without notice.
  *
  * ===========================================================================
  * LICENSE
@@ -118,16 +120,19 @@ enum mg_error {
 	MG_UNSUPPORTED_COLOR_DEPTH,
 
 	/* possible on Wayland */
-	MG_PROTOCOL_OR_IO_ERROR,
-	MG_IO_ERROR,
-	MG_SHM_ERROR,
-	MG_UNSUPPORTED_KEYMAP
+	MG_PROTOCOL_OR_IO_ERROR, /* sets mg_storederrno */
+	MG_IO_ERROR,             /* sets mg_storederrno */
+	MG_SHM_ERROR,            /* sets mg_storederrno */
 };
 /*
- * this global variable holds the error type if the library encounters an
- * error (for more info, see below, at mg_init())
+ * `mg_errstatus` holds the error type if the library encounters an error
+ * for more info on library errors, see below, at mg_init()
+ *
+ * if that error was from something that also sets `errno`, that
+ * `errno` value gets stored in `mg_storederrno`
  */
-extern enum mg_error mg_errno;
+extern enum mg_error mg_errstatus;
+extern int mg_storederrno;
 /*
  * minigraphics uses an event loop for handling of things such as
  * key presses, mouse clicks/movement, etc.
@@ -207,7 +212,7 @@ MG_API void mg_init(int w, int h, const char *title, jmp_buf err_return);
  *
  * the `err_return` parameter must be a valid jmp_buf initialized by a call to
  * setjmp(). if an error is ever encountered, a longjmp() to there occurs;
- * you can use the variable `mg_errno` to determine what error occurred.
+ * you can use the variable `mg_errstatus` to determine what error occurred.
  */
 
 /*
@@ -216,10 +221,12 @@ MG_API void mg_init(int w, int h, const char *title, jmp_buf err_return);
 MG_API void mg_fullscreen(int enable);
 MG_API void mg_set_title(const char *title);
 /*
- * if an error occurs, to convert that `mg_error` into an error message, use:
+ * if an error occurs, to get an error message, use:
  */
-MG_API const char *mg_strerror(enum mg_error err);
+MG_API const char *mg_errstring();
 /*
+ * this also includes an strerror() of `mg_storederrno` if applicable.
+ *
  * once you are ready to quit, call:
  */
 MG_API void mg_quit(void);
@@ -309,10 +316,9 @@ static const char *mg__strerrors[] = {
 	"library initialization failed",
 	"out of memory",
 	"unsupported color depth",
-	"protocol/IO error",
-	"IO error",
-	"error creating shared memory object",
-	"unsupported keymap"
+	"protocol/IO error: ",
+	"IO error: ",
+	"error creating shared memory object: ",
 };
 
 /*
@@ -371,7 +377,7 @@ static const uint32_t mg__256_palette[256] = {
  * -----------------------------------
  * macros
  */
-#define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
+#define MG__ERROR(errstatus) { mg_errstatus = errstatus; longjmp(mg.err_return, 1); }
 #define MG__MIN(x, y) ((x < y) ? x : y)
 #define MG__X_EVENT_MASK ExposureMask | StructureNotifyMask | KeyPressMask | \
 	KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
@@ -408,7 +414,8 @@ static struct mg__state mg;
  */
 int mg_width;
 int mg_height;
-enum mg_error mg_errno;
+enum mg_error mg_errstatus;
+int mg_storederrno;
 
 /*
  * -----------------------------------
@@ -653,9 +660,9 @@ mg_set_title(const char *title)
 }
 
 const char *
-mg_strerror(enum mg_error err)
+mg_errstring(void)
 {
-	return mg__strerrors[err];
+	return mg__strerrors[mg_errstatus];
 }
 
 void
@@ -771,9 +778,9 @@ mg_draw(const uint32_t *data, uint32_t width, uint32_t height,
 			ximage->data[j + 2] = (char)((data[i] & 0x00ff0000) >> 16);
 			break;
 		case MG_PIXEL_FORMAT_XBGR:
-			ximage->data[j] =     (char)((data[i] & 0x00ff0000) >> 24);
-			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 16);
-			ximage->data[j + 2] = (char)((data[i] & 0x000000ff) >> 8);
+			ximage->data[j] =     (char)((data[i] & 0x00ff0000) >> 16);
+			ximage->data[j + 1] = (char)((data[i] & 0x0000ff00) >> 8);
+			ximage->data[j + 2] = (char)( data[i] & 0x000000ff);
 			break;
 		case MG_PIXEL_FORMAT_256:
 			{
@@ -911,7 +918,9 @@ static const uint32_t mg__256_palette[256] = {
  * -----------------------------------
  * macros
  */
-#define MG__ERROR(errno) { mg_errno = errno; longjmp(mg.err_return, 1); }
+#define MG__ERROR(errstatus) { mg_errstatus = errstatus; mg_storederrno = errno; longjmp(mg.err_return, 1); }
+#define MG__ERROR_NO_ERRNO(errstatus) { mg_errstatus = errstatus; longjmp(mg.err_return, 1); }
+#define MG__ERRSTRING_BUFSIZE 256
 #define MG__MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /*
@@ -1026,7 +1035,8 @@ static struct mg__state mg;
  */
 int mg_width;
 int mg_height;
-enum mg_error mg_errno;
+enum mg_error mg_errstatus;
+int mg_storederrno;
 
 /*
  * -----------------------------------
@@ -1186,8 +1196,9 @@ mg__allocate_shm_file(size_t size)
 		ret = ftruncate(fd, (off_t)size);
 	} while (ret < 0 && errno == EINTR);
 	if (ret < 0) {
+		mg_storederrno = errno;
 		close(fd);
-		MG__ERROR(MG_SHM_ERROR)
+		MG__ERROR_NO_ERRNO(MG_SHM_ERROR)
 	}
 	return fd;
 }
@@ -1206,7 +1217,11 @@ mg__wl_keyboard_keymap(void *data, MG_UNUSED struct wl_keyboard *wl_keyboard, ui
 	struct xkb_state *xkb_state;
 
 	if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1)
-		MG__ERROR(MG_UNSUPPORTED_KEYMAP)
+		return; /*
+			 * XXX: this used to be a MG__ERROR(), check whether just
+			 * silently returning like this is a good idea or if
+			 * something else should be done
+			 */
 
 	map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 	if (map_shm == MAP_FAILED)
@@ -1767,9 +1782,20 @@ mg_set_title(const char *title)
 }
 
 const char *
-mg_strerror(enum mg_error err)
+mg_errstring(void)
 {
-	return mg__strerrors[err];
+	static char buf[MG__ERRSTRING_BUFSIZE];
+	size_t l = MG__MIN(strlen(mg__strerrors[mg_errstatus]), MG__ERRSTRING_BUFSIZE - 1);
+
+	memcpy(buf, mg__strerrors[mg_errstatus], l);
+	buf[l] = '\0';
+	if (mg_errstatus == MG_PROTOCOL_OR_IO_ERROR || mg_errstatus == MG_IO_ERROR || mg_errstatus == MG_SHM_ERROR) {
+		const char *e = strerror(mg_storederrno);
+		size_t l2 = MG__MIN(strlen(e), MG__ERRSTRING_BUFSIZE - l - 1);
+		memcpy(buf + l, e, l2);
+		buf[l + l2] = '\0';
+	}
+	return buf;
 }
 
 void

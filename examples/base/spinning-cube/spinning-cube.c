@@ -100,7 +100,7 @@ main(void)
 	uint8_t *draw;
 
 	if (setjmp(env)) {
-		fprintf(stderr, "mg error: %s\n", mg_strerror(mg_errno));
+		fprintf(stderr, "mg error: %s\n", mg_errstring());
 		return 1;
 	}
 

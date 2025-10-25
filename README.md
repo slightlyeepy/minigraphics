@@ -59,7 +59,6 @@ Wayland only:
 # todo
 
 high priority:
-- for library errors that internally occurred cause some function failed and set `errno`, preserve that errno value and provide a `strerror()` of it in `mg_strerror()`. also consider renaming `mg_errno` -> `mg_errstatus` and `mg_strerror()` ->` mg_errstring()`
 - `mg_waitevent()` with a timeout, like SDL's `SDL_WaitEventTimeout()`
 - something better for keyboard input. ideally a keypress should be a scancode/keysym pair like in SDL. also this may be unviable but not depending on the libxkbcommon header would be nice
 - timestamps for events and something to get the current timestamp similar to `SDL_GetTicks()`
