@@ -16,9 +16,9 @@
 
 #define WIDTH 960
 #define HEIGHT 720
-#define BACKGROUND_COLOR 0xFF181818
+#define BACKGROUND_COLOR 0xff181818
 #define CIRCLE_RADIUS 100
-#define CIRCLE_COLOR 0x99AA2020
+#define CIRCLE_COLOR 0x99aa2020
 
 #define PI 3.14159265359
 
@@ -55,7 +55,7 @@ redraw(double dt, uint32_t *data)
 		rotate_point(&x1, &y1, triangle_angle);
 		rotate_point(&x2, &y2, triangle_angle);
 		rotate_point(&x3, &y3, triangle_angle);
-		olivec_triangle3c(oc, x1, y1, x2, y2, x3, y3, 0xFF2020FF, 0xFF20FF20, 0xFFFF2020);
+		olivec_triangle3c(oc, x1, y1, x2, y2, x3, y3, 0xff2020ff, 0xff20ff20, 0xffff2020);
 	}
 
 	// Circle

@@ -18,7 +18,7 @@
 
 #define WIDTH 960
 #define HEIGHT 720
-#define BACKGROUND_COLOR 0xFF181818
+#define BACKGROUND_COLOR 0xff181818
 
 #define PI 3.14159265359
 
@@ -148,7 +148,7 @@ redraw(double dt, uint32_t *data, double *zbuffer)
 						double far = 5.0;
 						if (1.0/far < z && z < 1.0/near && z > zbuffer[y*WIDTH + x]) {
 							zbuffer[y*WIDTH + x] = z;
-							OLIVEC_PIXEL(oc, x, y) = mix_colors3(0xFF1818FF, 0xFF18FF18, 0xFFFF1818, u1, u2, det);
+							OLIVEC_PIXEL(oc, x, y) = mix_colors3(0xff1818ff, 0xff18ff18, 0xffff1818, u1, u2, det);
 
 							z = 1.0/z;
 							if (z >= 1.0) {
