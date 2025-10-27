@@ -47,6 +47,7 @@ main(void)
 	/* if a library error happens, a longjmp() to here will happen. */
 	if (setjmp(env)) {
 		fprintf(stderr, "mg error: %s\n", mg_errstring());
+		mg_quit();
 		return 1;
 	}
 
@@ -55,33 +56,35 @@ main(void)
 
 	cont = true;
 	while (cont) {
-		mg_waitevent(&event);
-		switch (event.type) {
-		case MG_QUIT:
-			puts("recieved event: MG_QUIT");
-			cont = false;
-			break;
-		case MG_RESIZE:
-			printf("recieved event: MG_RESIZE:      width = %d, height = %d\n", mg_width, mg_height);
-			break;
-		case MG_REDRAW:
-			puts("recieved event: MG_REDRAW");
-			break;
-		case MG_KEYDOWN: /* FALLTHROUGH */
-		case MG_KEYUP:
-			print_key(&event);
-			break;
-		case MG_MOUSEDOWN: /* FALLTHROUGH */
-		case MG_MOUSEUP:
-			print_mousebtn(&event);
-			break;
-		case MG_MOUSEMOTION:
-			printf("recieved event: MG_MOUSEMOTION: x = %d, y = %d\n", event.x, event.y);
-			break;
-		default:
-			break;
+		if (mg_waiteventfor(&event, 5000)) {
+			switch (event.type) {
+			case MG_QUIT:
+				puts("recieved event: MG_QUIT");
+				cont = false;
+				break;
+			case MG_RESIZE:
+				printf("recieved event: MG_RESIZE:      width = %d, height = %d\n", mg_width, mg_height);
+				break;
+			case MG_REDRAW:
+				puts("recieved event: MG_REDRAW");
+				break;
+			case MG_KEYDOWN: /* FALLTHROUGH */
+			case MG_KEYUP:
+				print_key(&event);
+				break;
+			case MG_MOUSEDOWN: /* FALLTHROUGH */
+			case MG_MOUSEUP:
+				print_mousebtn(&event);
+				break;
+			case MG_MOUSEMOTION:
+				printf("recieved event: MG_MOUSEMOTION: x = %d, y = %d\n", event.x, event.y);
+				break;
+			default:
+				break;
+			}
+		} else {
+			puts("5 seconds passed without an event");
 		}
-			
 	}
 
 	/* cleanup */

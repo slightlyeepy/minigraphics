@@ -59,7 +59,6 @@ Wayland only:
 # todo
 
 high priority:
-- `mg_waitevent()` with a timeout, like SDL's `SDL_WaitEventTimeout()`
 - something better for keyboard input. ideally a keypress should be a scancode/keysym pair like in SDL. also this may be unviable but not depending on the libxkbcommon header would be nice
 - timestamps for events and something to get the current timestamp similar to `SDL_GetTicks()`
 - mouse wheel events. right now there's some useless code in the Wayland backend for handling axis events, it should go to use

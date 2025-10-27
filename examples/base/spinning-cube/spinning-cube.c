@@ -101,6 +101,7 @@ main(void)
 
 	if (setjmp(env)) {
 		fprintf(stderr, "mg error: %s\n", mg_errstring());
+		mg_quit();
 		return 1;
 	}
 

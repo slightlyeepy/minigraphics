@@ -95,6 +95,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "usage: %s image\n"
 				"image must be a file in farbfeld format; pass - to read from stdin\n",
 				argv[0]);
+		return 1;
 	}
 
 	if (!strcmp(argv[1], "-")) {
@@ -108,8 +109,10 @@ main(int argc, char *argv[])
 	read_farbfeld(image_source, &img_data, &img_width, &img_height);
 
 	/* if a library error happens, a longjmp() to here will happen. */
-	if (setjmp(env))
+	if (setjmp(env)) {
+		mg_quit();
 		die("mg error: %s", mg_errstring());
+	}
 
 	/* create a window of the same size as the image */
 	mg_init(img_width, img_height, "farbfeld-view.c", env);
