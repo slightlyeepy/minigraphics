@@ -5,10 +5,10 @@ SRC     = spinning-cube.c
 HEADERS = ../../../minigraphics.h
 
 WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra
-CFLAGS  = -I. -I../../.. -D_POSIX_C_SOURCE=200112L -Ofast -lm $(WFLAGS)
+CFLAGS  = -lrt -lm -I. -I../../.. -D_POSIX_C_SOURCE=200112L -Ofast $(WFLAGS)
 
 X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
-WL_CFLAGS   = -lrt -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
+WL_CFLAGS   = -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
 WL_PROTOCOL = xdg-shell-protocol.c xdg-shell-client-protocol.h
 
 all: x11 wayland

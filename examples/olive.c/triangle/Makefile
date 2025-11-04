@@ -6,10 +6,10 @@ HEADERS = ../../../minigraphics.h ../olive.c
 
 OLIVEC_WFLAGS=-Wno-missing-braces -Wno-strict-aliasing -Wno-unused-variable
 WFLAGS  = -std=c99 -Werror -pedantic -Wall -Wextra $(OLIVEC_WFLAGS)
-CFLAGS  = -I. -I.. -I../../.. -D_POSIX_C_SOURCE=200112L -Ofast -lm $(WFLAGS)
+CFLAGS  = -lrt -I. -I.. -I../../.. -D_POSIX_C_SOURCE=200112L -Ofast -lm $(WFLAGS)
 
 X11_CFLAGS  = -lX11 -DMG_BACKEND_X11
-WL_CFLAGS   = -lrt -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
+WL_CFLAGS   = -lwayland-client -lxkbcommon -DMG_BACKEND_WAYLAND
 WL_PROTOCOL = xdg-shell-protocol.c xdg-shell-client-protocol.h
 
 all: x11 wayland

@@ -66,11 +66,15 @@ main(void)
 	redraw(&draw);
 
 	for (;;) {
+		/* clear event struct */
+		memset(&event, 0, sizeof(struct mg_event));
+
 		/* wait until an event is available */
 		mg_waitevent(&event);
-		if (event.type == MG_QUIT) {
+
+		if (event.events & MG_QUIT)
 			break;
-		} else if (event.type == MG_RESIZE) {
+		if (event.events & MG_RESIZE) {
 			/* resize draw buffer */
 			draw.width = mg_width;
 			draw.height = mg_height;
@@ -82,7 +86,7 @@ main(void)
 
 			/* clear and redraw */
 			redraw(&draw);
-		} else if (event.type == MG_REDRAW) {
+		} else if (event.events & MG_REDRAW) {
 			/* clear and redraw */
 			redraw(&draw);
 		}

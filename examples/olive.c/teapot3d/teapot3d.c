@@ -4,6 +4,7 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define MG_IMPLEMENTATION
@@ -216,8 +217,10 @@ main(void)
 	struct timespec tp_prev, tp;
 	double deltatime = 0.0;
 	bool first = true;
+	memset(&event, 0, sizeof(struct mg_event));
 	for (;;) {
-		if (mg_getevent(&event) && event.type == MG_QUIT)
+		/* don't really need to memset(&event, 0) every iter */
+		if (mg_getevent(&event) && (event.events & MG_QUIT))
 			break;
 
 		/* get deltatime */

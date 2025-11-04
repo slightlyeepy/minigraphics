@@ -123,17 +123,20 @@ main(int argc, char *argv[])
 	mg_flush(); /* make sure our changes are written to the screen */
 
 	for (;;) {
+		/* clear event struct */
+		memset(&event, 0, sizeof(struct mg_event));
+
 		/* wait until an event is available */
 		mg_waitevent(&event);
-		if (event.type == MG_QUIT) {
+		if (event.events & MG_QUIT)
 			break;
-		} else if (event.type == MG_RESIZE || event.type == MG_REDRAW) {
+		if ((event.events & MG_RESIZE) || (event.events & MG_REDRAW)) {
 			/* clear and redraw */
 			mg_clear();
 			mg_draw(img_data, img_width, img_height, MG_PIXEL_FORMAT_RGBX, 0, 0);
 			mg_flush(); /* make sure our changes are written to the screen */
-		} else if (event.type == MG_KEYDOWN &&
-				(event.key == XKB_KEY_f || event.key == XKB_KEY_F)) {
+		}
+		if ((event.events & MG_KEYDOWN) && event.keydown == MG_KEY_F) {
 			fullscreen = !fullscreen;
 			mg_fullscreen(fullscreen);
 		}

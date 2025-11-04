@@ -121,8 +121,10 @@ main(void)
 
 	mg_init(WIDTH, HEIGHT, "spinning-cube.c", env);
 
+	memset(&event, 0, sizeof(struct mg_event));
 	for (;;) {
-		if (mg_getevent(&event) && event.type == MG_QUIT)
+		/* don't really need to memset(&event, 0) every iter */
+		if (mg_getevent(&event) && (event.events & MG_QUIT))
 			break;
 
 		memset(draw, WHITE, WIDTH * HEIGHT);
